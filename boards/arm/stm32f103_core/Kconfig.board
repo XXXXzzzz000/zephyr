@@ -1,0 +1,9 @@
+# Kconfig - STM32 Minimum Development Board Configuration
+#
+# Copyright (c) 2017, embedjournal.com
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+config BOARD_STM32F103_CORE
+	bool "STM32F103_C8T6 Core Board"
+	depends on SOC_STM32F103X8
