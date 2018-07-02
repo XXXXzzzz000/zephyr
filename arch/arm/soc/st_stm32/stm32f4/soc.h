@@ -24,8 +24,13 @@
 
 #ifndef _ASMLANGUAGE
 
-#include <kernel_includes.h>
 #include <stm32f4xx.h>
+
+/* ARM CMSIS definitions must be included before kernel_includes.h.
+ * Therefore, it is essential to include kernel_includes.h after including
+ * core SOC-specific headers.
+ */
+#include <kernel_includes.h>
 
 #ifdef CONFIG_CLOCK_CONTROL_STM32_CUBE
 #include <stm32f4xx_ll_utils.h>
