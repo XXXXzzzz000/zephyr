@@ -75,6 +75,9 @@ enum ethernet_hw_caps {
 
 	/** IEEE 802.1AS (gPTP) clock supported */
 	ETHERNET_PTP			= BIT(8),
+
+	/** IEEE 802.1Qav (credit-based shaping) supported */
+	ETHERNET_QAV			= BIT(9),
 };
 
 enum ethernet_config_type {
@@ -82,6 +85,16 @@ enum ethernet_config_type {
 	ETHERNET_CONFIG_TYPE_LINK,
 	ETHERNET_CONFIG_TYPE_DUPLEX,
 	ETHERNET_CONFIG_TYPE_MAC_ADDRESS,
+	ETHERNET_CONFIG_TYPE_QAV_DELTA_BANDWIDTH,
+	ETHERNET_CONFIG_TYPE_QAV_IDLE_SLOPE,
+};
+
+struct ethernet_qav_queue_param {
+	int queue_id;
+	union {
+		unsigned int delta_bandwidth;
+		unsigned int idle_slope;
+	};
 };
 
 struct ethernet_config {
@@ -97,6 +110,8 @@ struct ethernet_config {
 		} l;
 
 		struct net_eth_addr mac_address;
+
+		struct ethernet_qav_queue_param qav_queue_param;
 	};
 /* @endcond */
 };
@@ -369,6 +384,15 @@ struct net_if *net_eth_get_vlan_iface(struct net_if *iface, u16_t tag);
 bool net_eth_is_vlan_enabled(struct ethernet_context *ctx,
 			     struct net_if *iface);
 
+/**
+ * @brief Get VLAN status for a given network interface (enabled or not).
+ *
+ * @param iface Network interface
+ *
+ * @return True if VLAN is enabled for this network interface, false if not.
+ */
+bool net_eth_get_vlan_status(struct net_if *iface);
+
 #define ETH_NET_DEVICE_INIT(dev_name, drv_name, init_fn,		 \
 			    data, cfg_info, prio, api, mtu)		 \
 	DEVICE_AND_API_INIT(dev_name, drv_name, init_fn, data,		 \
@@ -403,6 +427,11 @@ static inline
 struct net_if *net_eth_get_vlan_iface(struct net_if *iface, u16_t tag)
 {
 	return NULL;
+}
+
+static inline bool net_eth_get_vlan_status(struct net_if *iface)
+{
+	return false;
 }
 #endif /* CONFIG_NET_VLAN */
 
