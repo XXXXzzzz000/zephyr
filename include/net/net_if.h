@@ -32,6 +32,9 @@
 #if defined(CONFIG_NET_DHCPV4)
 #include <net/dhcpv4.h>
 #endif
+#if defined(CONFIG_NET_IPV4_AUTO)
+#include <net/ipv4_autoconf.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -236,6 +239,15 @@ struct net_if_ipv4 {
 
 #if defined(CONFIG_NET_DHCPV4)
 struct net_if_dhcpv4 {
+	/** Used for timer lists */
+	sys_snode_t node;
+
+	/** Timer start */
+	s64_t timer_start;
+
+	/** Time for INIT, DISCOVER, REQUESTING, RENEWAL */
+	u32_t request_time;
+
 	u32_t xid;
 
 	/** IP address Lease time */
@@ -253,16 +265,6 @@ struct net_if_dhcpv4 {
 	/** Requested IP addr */
 	struct in_addr requested_ip;
 
-	/** Timer for DHCPv4 Client requests (DISCOVER, REQUEST or RENEWAL)
-	 */
-	struct k_delayed_work timer;
-
-	/** T1 (Renewal) timer */
-	struct k_delayed_work t1_timer;
-
-	/** T2 (Rebinding) timer */
-	struct k_delayed_work t2_timer;
-
 	/**
 	 *  DHCPv4 client state in the process of network
 	 *  address allocation.
@@ -273,6 +275,41 @@ struct net_if_dhcpv4 {
 	u8_t attempts;
 };
 #endif /* CONFIG_NET_DHCPV4 */
+
+#if defined(CONFIG_NET_IPV4_AUTO)
+struct net_if_ipv4_autoconf {
+	/** Used for timer lists */
+	sys_snode_t node;
+
+	/** Backpointer to correct network interface */
+	struct net_if *iface;
+
+	/** Timer start */
+	s64_t timer_start;
+
+	/** Time for INIT, DISCOVER, REQUESTING, RENEWAL */
+	u32_t timer_timeout;
+
+	/** Current IP addr */
+	struct in_addr current_ip;
+
+	/** Requested IP addr */
+	struct in_addr requested_ip;
+
+	/** IPV4 Autoconf state in the process of network address allocation.
+	 */
+	enum net_ipv4_autoconf_state state;
+
+	/** Number of sent probe requests */
+	u8_t probe_cnt;
+
+	/** Number of sent announcements */
+	u8_t announce_cnt;
+
+	/** Incoming conflict count */
+	u8_t conflict_cnt;
+};
+#endif /* CONFIG_NET_IPV4_AUTO */
 
 /* We always need to have at least one IP config */
 #define NET_IF_MAX_CONFIGS 1
@@ -300,6 +337,10 @@ struct net_if_config {
 #if defined(CONFIG_NET_DHCPV4)
 	struct net_if_dhcpv4 dhcpv4;
 #endif /* CONFIG_NET_DHCPV4 */
+
+#if defined(CONFIG_NET_IPV4_AUTO)
+	struct net_if_ipv4_autoconf ipv4auto;
+#endif /* CONFIG_NET_IPV4_AUTO */
 };
 
 /**

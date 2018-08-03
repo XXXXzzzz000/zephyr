@@ -49,6 +49,7 @@
 #include "connection.h"
 #include "udp_internal.h"
 #include "tcp_internal.h"
+#include "ipv4_autoconf_internal.h"
 
 #include "net_stats.h"
 
@@ -373,6 +374,8 @@ static inline void l3_init(void)
 	net_icmpv6_init();
 	net_ipv6_init();
 
+	net_ipv4_autoconf_init();
+
 #if defined(CONFIG_NET_UDP) || defined(CONFIG_NET_TCP)
 	net_conn_init();
 #endif
@@ -405,7 +408,7 @@ static int net_init(struct device *unused)
 	init_rx_queues();
 
 #if CONFIG_NET_DHCPV4
-	status = dhcpv4_init();
+	status = net_dhcpv4_init();
 	if (status) {
 		return status;
 	}

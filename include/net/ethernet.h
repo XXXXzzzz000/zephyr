@@ -81,6 +81,12 @@ enum ethernet_hw_caps {
 
 	/** Promiscuous mode supported */
 	ETHERNET_PROMISC_MODE		= BIT(10),
+
+	/** Priority queues available */
+	ETHERNET_PRIORITY_QUEUES	= BIT(11),
+
+	/** MAC address filtering supported */
+	ETHERNET_HW_FILTERING		= BIT(12),
 };
 
 enum ethernet_config_type {
@@ -88,17 +94,45 @@ enum ethernet_config_type {
 	ETHERNET_CONFIG_TYPE_LINK,
 	ETHERNET_CONFIG_TYPE_DUPLEX,
 	ETHERNET_CONFIG_TYPE_MAC_ADDRESS,
-	ETHERNET_CONFIG_TYPE_QAV_DELTA_BANDWIDTH,
-	ETHERNET_CONFIG_TYPE_QAV_IDLE_SLOPE,
+	ETHERNET_CONFIG_TYPE_QAV_PARAM,
 	ETHERNET_CONFIG_TYPE_PROMISC_MODE,
+	ETHERNET_CONFIG_TYPE_PRIORITY_QUEUES_NUM,
+	ETHERNET_CONFIG_TYPE_FILTER,
 };
 
-struct ethernet_qav_queue_param {
+enum ethernet_qav_param_type {
+	ETHERNET_QAV_PARAM_TYPE_DELTA_BANDWIDTH,
+	ETHERNET_QAV_PARAM_TYPE_IDLE_SLOPE,
+	ETHERNET_QAV_PARAM_TYPE_STATUS,
+};
+
+struct ethernet_qav_param {
+	/** ID of the priority queue to use */
 	int queue_id;
+	/** Type of Qav parameter */
+	enum ethernet_qav_param_type type;
 	union {
+		/** True if Qav is enabled for queue */
+		bool enabled;
+		/** Delta Bandwidth (percentage of bandwidth) */
 		unsigned int delta_bandwidth;
+		/** Idle Slope (bits per second) */
 		unsigned int idle_slope;
 	};
+};
+
+enum ethernet_filter_type {
+	ETHERNET_FILTER_TYPE_SRC_MAC_ADDRESS,
+	ETHERNET_FILTER_TYPE_DST_MAC_ADDRESS,
+};
+
+struct ethernet_filter {
+	/** Type of filter */
+	enum ethernet_filter_type type;
+	/** MAC address to filter */
+	struct net_eth_addr mac_address;
+	/** Set (true) or unset (false) the filter */
+	bool set;
 };
 
 struct ethernet_config {
@@ -116,7 +150,11 @@ struct ethernet_config {
 
 		struct net_eth_addr mac_address;
 
-		struct ethernet_qav_queue_param qav_queue_param;
+		struct ethernet_qav_param qav_param;
+
+		int priority_queues_num;
+
+		struct ethernet_filter filter;
 	};
 /* @endcond */
 };
@@ -133,7 +171,7 @@ struct ethernet_api {
 	 * should be set by driver if statistics needs to be collected
 	 * for that driver.
 	 */
-	struct net_stats_eth *(*get_stats)(struct net_if *iface);
+	struct net_stats_eth *(*get_stats)(struct device *dev);
 #endif
 
 	/** Get the device capabilities */
@@ -143,6 +181,11 @@ struct ethernet_api {
 	int (*set_config)(struct device *dev,
 			  enum ethernet_config_type type,
 			  const struct ethernet_config *config);
+
+	/** Get hardware specific configuration */
+	int (*get_config)(struct device *dev,
+			  enum ethernet_config_type type,
+			  struct ethernet_config *config);
 
 #if defined(CONFIG_NET_VLAN)
 	/** The IP stack will call this function when a VLAN tag is enabled
