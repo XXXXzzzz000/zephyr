@@ -17,6 +17,12 @@
 #include <device.h>
 #include <init.h>
 #include <logging/sys_log.h>
+#if defined(CONFIG_NETWORKING) && defined (CONFIG_DYNAMIC_OBJECTS)
+/* Used by auto-generated obj_size_get() switch body, as we need to
+ * know the size of struct net_context
+ */
+#include <net/net_context.h>
+#endif
 
 #define MAX_THREAD_BITS		(CONFIG_MAX_THREAD_BYTES * 8)
 
@@ -544,6 +550,17 @@ void _k_object_init(void *object)
 
 	/* Allows non-initialization system calls to be made on this object */
 	ko->flags |= K_OBJ_FLAG_INITIALIZED;
+}
+
+void _k_object_recycle(void *object)
+{
+	struct _k_object *ko = _k_object_find(object);
+
+	if (ko) {
+		memset(ko->perms, 0, sizeof(ko->perms));
+		_thread_perms_set(ko, k_current_get());
+		ko->flags |= K_OBJ_FLAG_INITIALIZED;
+	}
 }
 
 void _k_object_uninit(void *object)

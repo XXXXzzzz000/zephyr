@@ -101,9 +101,7 @@ static inline void ethernet_update_length(struct net_if *iface,
 	if (net_pkt_family(pkt) == AF_INET) {
 		len = ntohs(NET_IPV4_HDR(pkt)->len);
 	} else {
-		len = ((NET_IPV6_HDR(pkt)->len[0] << 8) +
-		       NET_IPV6_HDR(pkt)->len[1]) +
-			NET_IPV6H_LEN;
+		len = ntohs(NET_IPV6_HDR(pkt)->len) + NET_IPV6H_LEN;
 	}
 
 	if (len < NET_ETH_MINIMAL_FRAME_SIZE - sizeof(struct net_eth_hdr)) {
@@ -576,8 +574,19 @@ static inline u16_t ethernet_reserve(struct net_if *iface, void *unused)
 
 static inline int ethernet_enable(struct net_if *iface, bool state)
 {
+	const struct ethernet_api *eth =
+		net_if_get_device(iface)->driver_api;
+
 	if (!state) {
 		net_arp_clear_cache(iface);
+
+		if (eth->stop) {
+			eth->stop(net_if_get_device(iface));
+		}
+	} else {
+		if (eth->start) {
+			eth->start(net_if_get_device(iface));
+		}
 	}
 
 	return 0;
