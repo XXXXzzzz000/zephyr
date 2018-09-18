@@ -145,10 +145,9 @@ module can be specified as well.
 
 .. code-block:: c
 
-   #define LOG_MODULE_NAME foo
    #define LOG_LEVEL CONFIG_FOO_LOG_LEVEL /* From foo module Kconfig */
    #include <logging/log.h>
-   LOG_MODULE_REGISTER(); /* One per given LOG_MODULE_NAME */
+   LOG_MODULE_REGISTER(foo); /* One per given log_module_name */
 
 If the module consists of multiple files, then ``LOG_MODULE_REGISTER()`` should
 appear in exactly one of them. Each other file should use
@@ -156,10 +155,21 @@ appear in exactly one of them. Each other file should use
 
 .. code-block:: c
 
-   #define LOG_MODULE_NAME foo
    #define LOG_LEVEL CONFIG_FOO_LOG_LEVEL /* From foo module Kconfig */
    #include <logging/log.h>
-   LOG_MODULE_DECLARE(); /* In all files comprising the module but one */
+   LOG_MODULE_DECLARE(foo); /* In all files comprising the module but one */
+
+Dedicated Kconfig template (:file:`subsys/logging/Kconfig.template.log_config`)
+can be used to create local log level configuration.
+
+Example below presents usage of the template. As a result CONFIG_FOO_LOG_LEVEL
+will be generated:
+
+.. code-block:: none
+
+   module = FOO
+   module-str = foo
+   source "subsys/logging/Kconfig.template.log_config"
 
 Logging in a module instance
 ============================

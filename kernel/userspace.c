@@ -34,6 +34,7 @@ static void clear_perms_cb(struct _k_object *ko, void *ctx_ptr);
 
 const char *otype_to_str(enum k_objects otype)
 {
+	const char *ret;
 	/* -fdata-sections doesn't work right except in very very recent
 	 * GCC and these literal strings would appear in the binary even if
 	 * otype_to_str was omitted by the linker
@@ -45,12 +46,14 @@ const char *otype_to_str(enum k_objects otype)
 	 */
 #include <otype-to-str.h>
 	default:
-		return "?";
+		ret = "?";
+		break;
 	}
 #else
 	ARG_UNUSED(otype);
 	return NULL;
 #endif
+	return ret;
 }
 
 struct perm_ctx {
@@ -94,11 +97,16 @@ static sys_dlist_t obj_list = SYS_DLIST_STATIC_INIT(&obj_list);
 
 static size_t obj_size_get(enum k_objects otype)
 {
+	size_t ret;
+
 	switch (otype) {
 #include <otype-to-size.h>
 	default:
-		return sizeof(struct device);
+		ret = sizeof(struct device);
+		break;
 	}
+
+	return ret;
 }
 
 static int node_lessthan(struct rbnode *a, struct rbnode *b)
@@ -220,7 +228,7 @@ void *_impl_k_object_alloc(enum k_objects otype)
 	dyn_obj->kobj.name = (char *)&dyn_obj->data;
 	dyn_obj->kobj.type = otype;
 	dyn_obj->kobj.flags = K_OBJ_FLAG_ALLOC;
-	memset(dyn_obj->kobj.perms, 0, CONFIG_MAX_THREAD_BYTES);
+	(void)memset(dyn_obj->kobj.perms, 0, CONFIG_MAX_THREAD_BYTES);
 
 	/* Need to grab a new thread index for k_thread */
 	if (otype == K_OBJ_THREAD) {
@@ -342,6 +350,7 @@ static void unref_check(struct _k_object *ko)
 		k_stack_cleanup((struct k_stack *)ko->name);
 		break;
 	default:
+		/* Nothing to do */
 		break;
 	}
 
@@ -462,6 +471,10 @@ void _dump_object_error(int retval, void *obj, struct _k_object *ko,
 		break;
 	case -EADDRINUSE:
 		printk("%p %s in use\n", obj, otype_to_str(otype));
+		break;
+	default:
+		/* Not handled error */
+		break;
 	}
 }
 
@@ -557,7 +570,7 @@ void _k_object_recycle(void *object)
 	struct _k_object *ko = _k_object_find(object);
 
 	if (ko) {
-		memset(ko->perms, 0, sizeof(ko->perms));
+		(void)memset(ko->perms, 0, sizeof(ko->perms));
 		_thread_perms_set(ko, k_current_get());
 		ko->flags |= K_OBJ_FLAG_INITIALIZED;
 	}
