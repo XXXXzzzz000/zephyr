@@ -20,8 +20,9 @@ set(ENV{KCONFIG_AUTOHEADER} ${AUTOCONF_H})
 
 # Set environment variables so that Kconfig can prune Kconfig source
 # files for other architectures
-set(ENV{ENV_VAR_ARCH}      ${ARCH})
-set(ENV{ENV_VAR_BOARD_DIR} ${BOARD_DIR})
+set(ENV{ARCH}      ${ARCH})
+set(ENV{BOARD_DIR} ${BOARD_DIR})
+set(ENV{SOC_DIR}   ${SOC_DIR})
 
 add_custom_target(
   menuconfig
@@ -29,8 +30,9 @@ add_custom_target(
   srctree=${ZEPHYR_BASE}
   KERNELVERSION=${PROJECT_VERSION}
   KCONFIG_CONFIG=${DOTCONFIG}
-  ENV_VAR_ARCH=$ENV{ENV_VAR_ARCH}
-  ENV_VAR_BOARD_DIR=$ENV{ENV_VAR_BOARD_DIR}
+  ARCH=$ENV{ARCH}
+  BOARD_DIR=$ENV{BOARD_DIR}
+  SOC_DIR=$ENV{SOC_DIR}
   ${PYTHON_EXECUTABLE} ${ZEPHYR_BASE}/scripts/kconfig/menuconfig.py ${KCONFIG_ROOT}
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/kconfig
   USES_TERMINAL

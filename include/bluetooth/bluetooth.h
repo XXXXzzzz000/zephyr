@@ -8,8 +8,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_BLUETOOTH_H
-#define __BT_BLUETOOTH_H
+#ifndef ZEPHYR_INCLUDE_BLUETOOTH_BLUETOOTH_H_
+#define ZEPHYR_INCLUDE_BLUETOOTH_BLUETOOTH_H_
 
 /**
  * @brief Bluetooth APIs
@@ -271,6 +271,12 @@ enum {
 
 	/* Advertise using GAP device name */
 	BT_LE_ADV_OPT_USE_NAME = BIT(3),
+
+	/** Use low duty directed advertising mode, otherwise high duty mode
+	 *  will be used. This option is only effective when used with
+	 *  bt_conn_create_slave_le().
+	 */
+	BT_LE_ADV_OPT_DIR_MODE_LOW_DUTY = BIT(4),
 };
 
 /** LE Advertising Parameters. */
@@ -309,6 +315,14 @@ struct bt_le_adv_param {
 					    BT_LE_ADV_OPT_USE_NAME, \
 					    BT_GAP_ADV_FAST_INT_MIN_2, \
 					    BT_GAP_ADV_FAST_INT_MAX_2)
+
+#define BT_LE_ADV_CONN_DIR_LOW_DUTY \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME | \
+			BT_LE_ADV_OPT_DIR_MODE_LOW_DUTY, \
+			BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2)
+
+#define BT_LE_ADV_CONN_DIR BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE | \
+					   BT_LE_ADV_OPT_ONE_TIME, 0, 0)
 
 #define BT_LE_ADV_NCONN BT_LE_ADV_PARAM(0, BT_GAP_ADV_FAST_INT_MIN_2, \
 					BT_GAP_ADV_FAST_INT_MAX_2)
@@ -675,4 +689,4 @@ int bt_unpair(u8_t id, const bt_addr_le_t *addr);
  * @}
  */
 
-#endif /* __BT_BLUETOOTH_H */
+#endif /* ZEPHYR_INCLUDE_BLUETOOTH_BLUETOOTH_H_ */

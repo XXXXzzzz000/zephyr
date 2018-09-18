@@ -50,6 +50,7 @@ static sys_slist_t subscriptions;
 static const u16_t gap_appearance = CONFIG_BT_DEVICE_APPEARANCE;
 
 static sys_slist_t db;
+static atomic_t init;
 
 static ssize_t read_name(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			 void *buf, u16_t len, u16_t offset)
@@ -99,6 +100,18 @@ static ssize_t read_appearance(struct bt_conn *conn,
 				 sizeof(appearance));
 }
 
+#if defined(CONFIG_BT_CENTRAL) && defined(CONFIG_BT_PRIVACY)
+static ssize_t read_central_addr_res(struct bt_conn *conn,
+				     const struct bt_gatt_attr *attr, void *buf,
+				     u16_t len, u16_t offset)
+{
+	u8_t central_addr_res = BT_GATT_CENTRAL_ADDR_RES_SUPP;
+
+	return bt_gatt_attr_read(conn, attr, buf, len, offset,
+				 &central_addr_res, sizeof(central_addr_res));
+}
+#endif /* CONFIG_BT_CENTRAL && CONFIG_BT_PRIVACY */
+
 static struct bt_gatt_attr gap_attrs[] = {
 	BT_GATT_PRIMARY_SERVICE(BT_UUID_GAP),
 #if defined(CONFIG_BT_DEVICE_NAME_GATT_WRITABLE)
@@ -113,6 +126,11 @@ static struct bt_gatt_attr gap_attrs[] = {
 #endif /* CONFIG_BT_DEVICE_NAME_GATT_WRITABLE */
 	BT_GATT_CHARACTERISTIC(BT_UUID_GAP_APPEARANCE, BT_GATT_CHRC_READ,
 			       BT_GATT_PERM_READ, read_appearance, NULL, NULL),
+#if defined(CONFIG_BT_CENTRAL) && defined(CONFIG_BT_PRIVACY)
+	BT_GATT_CHARACTERISTIC(BT_UUID_CENTRAL_ADDR_RES,
+			       BT_GATT_CHRC_READ, BT_GATT_PERM_READ,
+			       read_central_addr_res, NULL, NULL),
+#endif /* CONFIG_BT_CENTRAL && CONFIG_BT_PRIVACY */
 };
 
 static struct bt_gatt_service gap_svc = BT_GATT_SERVICE(gap_attrs);
@@ -237,6 +255,10 @@ static void sc_process(struct k_work *work)
 
 void bt_gatt_init(void)
 {
+	if (!atomic_cas(&init, 0, 1)) {
+		return;
+	}
+
 	/* Register mandatory services */
 	gatt_register(&gap_svc);
 	gatt_register(&gatt_svc);
@@ -296,6 +318,9 @@ int bt_gatt_service_register(struct bt_gatt_service *svc)
 	__ASSERT(svc, "invalid parameters\n");
 	__ASSERT(svc->attrs, "invalid parameters\n");
 	__ASSERT(svc->attr_count, "invalid parameters\n");
+
+	/* Init GATT core services */
+	bt_gatt_init();
 
 	/* Do no allow to register mandatory services twice */
 	if (!bt_uuid_cmp(svc->attrs[0].uuid, BT_UUID_GAP) ||
@@ -657,13 +682,14 @@ struct notify_data {
 	int err;
 	u16_t type;
 	const struct bt_gatt_attr *attr;
+	bt_gatt_notify_complete_func_t func;
 	const void *data;
 	u16_t len;
 	struct bt_gatt_indicate_params *params;
 };
 
 static int gatt_notify(struct bt_conn *conn, u16_t handle, const void *data,
-		       size_t len)
+		       size_t len, bt_gatt_notify_complete_func_t cb)
 {
 	struct net_buf *buf;
 	struct bt_att_notify *nfy;
@@ -682,7 +708,7 @@ static int gatt_notify(struct bt_conn *conn, u16_t handle, const void *data,
 	net_buf_add(buf, len);
 	memcpy(nfy->value, data, len);
 
-	bt_l2cap_send(conn, BT_L2CAP_CID_ATT, buf);
+	bt_l2cap_send_cb(conn, BT_L2CAP_CID_ATT, buf, cb);
 
 	return 0;
 }
@@ -841,7 +867,8 @@ static u8_t notify_cb(const struct bt_gatt_attr *attr, void *user_data)
 			err = gatt_indicate(conn, data->params);
 		} else {
 			err = gatt_notify(conn, data->attr->handle,
-					  data->data, data->len);
+					  data->data, data->len,
+					  data->func);
 		}
 
 		bt_conn_unref(conn);
@@ -856,12 +883,14 @@ static u8_t notify_cb(const struct bt_gatt_attr *attr, void *user_data)
 	return BT_GATT_ITER_CONTINUE;
 }
 
-int bt_gatt_notify(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		   const void *data, u16_t len)
+int bt_gatt_notify_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		      const void *data, u16_t len,
+		      bt_gatt_notify_complete_func_t func)
 {
 	struct notify_data nfy;
 
-	__ASSERT(attr && attr->handle, "invalid parameters\n");
+	__ASSERT(attr && attr->handle,
+		 "invalid parameters\n");
 
 	/* Check if attribute is a characteristic then adjust the handle */
 	if (!bt_uuid_cmp(attr->uuid, BT_UUID_GATT_CHRC)) {
@@ -875,11 +904,13 @@ int bt_gatt_notify(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 	}
 
 	if (conn) {
-		return gatt_notify(conn, attr->handle, data, len);
+		return gatt_notify(conn, attr->handle, data,
+				   len, func);
 	}
 
 	nfy.err = -ENOTCONN;
 	nfy.attr = attr;
+	nfy.func = func;
 	nfy.type = BT_GATT_CCC_NOTIFY;
 	nfy.data = data;
 	nfy.len = len;
@@ -929,7 +960,7 @@ static void sc_restore(struct bt_gatt_ccc_cfg *cfg)
 	sc_indicate(&gatt_sc, data->start, data->end);
 
 	/* Reset config data */
-	memset(cfg->data, 0, sizeof(cfg->data));
+	(void)memset(cfg->data, 0, sizeof(cfg->data));
 }
 
 static u8_t connected_cb(const struct bt_gatt_attr *attr, void *user_data)
@@ -1016,7 +1047,7 @@ static u8_t disconnected_cb(const struct bt_gatt_attr *attr, void *user_data)
 	}
 
 	/* Reset value while disconnected */
-	memset(&ccc->value, 0, sizeof(ccc->value));
+	(void)memset(&ccc->value, 0, sizeof(ccc->value));
 	if (ccc->cfg_changed) {
 		ccc->cfg_changed(attr, ccc->value);
 	}

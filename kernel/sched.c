@@ -334,7 +334,7 @@ struct k_thread *_unpend_first_thread(_wait_q_t *wait_q)
 	struct k_thread *t = _unpend1_no_timeout(wait_q);
 
 	if (t) {
-		_abort_thread_timeout(t);
+		(void)_abort_thread_timeout(t);
 	}
 
 	return t;
@@ -343,7 +343,7 @@ struct k_thread *_unpend_first_thread(_wait_q_t *wait_q)
 void _unpend_thread(struct k_thread *thread)
 {
 	_unpend_thread_no_timeout(thread);
-	_abort_thread_timeout(thread);
+	(void)_abort_thread_timeout(thread);
 }
 
 /* FIXME: this API is glitchy when used in SMP.  If the thread is
@@ -376,7 +376,7 @@ void _thread_priority_set(struct k_thread *thread, int prio)
 	}
 }
 
-int _reschedule(int key)
+void _reschedule(int key)
 {
 #ifdef CONFIG_SMP
 	if (!_current_cpu->swap_ok) {
@@ -394,13 +394,13 @@ int _reschedule(int key)
 	return _Swap(key);
 #else
 	if (_get_next_ready_thread() != _current) {
-		return _Swap(key);
+		(void)_Swap(key);
+		return;
 	}
 #endif
 
  noswap:
 	irq_unlock(key);
-	return 0;
 }
 
 void k_sched_lock(void)
@@ -789,10 +789,10 @@ void _impl_k_yield(void)
 	}
 
 #ifdef CONFIG_SMP
-	_Swap(irq_lock());
+	(void)_Swap(irq_lock());
 #else
 	if (_get_next_ready_thread() != _current) {
-		_Swap(irq_lock());
+		(void)_Swap(irq_lock());
 	}
 #endif
 }
@@ -827,7 +827,7 @@ void _impl_k_sleep(s32_t duration)
 	_remove_thread_from_ready_q(_current);
 	_add_thread_timeout(_current, NULL, ticks);
 
-	_Swap(key);
+	(void)_Swap(key);
 #endif
 }
 
