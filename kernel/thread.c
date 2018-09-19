@@ -162,8 +162,8 @@ void _thread_monitor_exit(struct k_thread *thread)
 		struct k_thread *prev_thread;
 
 		prev_thread = _kernel.threads;
-		while (prev_thread != NULL &&
-		       thread != prev_thread->next_thread) {
+		while ((prev_thread != NULL) &&
+			(thread != prev_thread->next_thread)) {
 			prev_thread = prev_thread->next_thread;
 		}
 		if (prev_thread != NULL) {
@@ -661,7 +661,7 @@ void k_thread_access_grant(struct k_thread *thread, ...)
 	va_list args;
 	va_start(args, thread);
 
-	while (1) {
+	while (true) {
 		void *object = va_arg(args, void *);
 		if (object == NULL) {
 			break;
