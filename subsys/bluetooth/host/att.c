@@ -1298,9 +1298,9 @@ static u8_t prep_write_cb(const struct bt_gatt_attr *attr, void *user_data)
 		return BT_GATT_ITER_STOP;
 	}
 
+	/* Check if attribute requires handler to accept the data */
 	if (!(attr->perm & BT_GATT_PERM_PREPARE_WRITE)) {
-		data->err = BT_ATT_ERR_WRITE_NOT_PERMITTED;
-		return BT_GATT_ITER_STOP;
+		goto append;
 	}
 
 	/* Write attribute value to check if device is authorized */
@@ -1311,6 +1311,7 @@ static u8_t prep_write_cb(const struct bt_gatt_attr *attr, void *user_data)
 		return BT_GATT_ITER_STOP;
 	}
 
+append:
 	/* Copy data into the outstanding queue */
 	data->buf = net_buf_alloc(&prep_pool, K_NO_WAIT);
 	if (!data->buf) {
@@ -1647,6 +1648,13 @@ static u8_t att_handle_read_mult_rsp(struct bt_att *att, struct net_buf *buf)
 }
 #endif /* CONFIG_BT_GATT_READ_MULTIPLE */
 
+static u8_t att_handle_read_group_rsp(struct bt_att *att, struct net_buf *buf)
+{
+	BT_DBG("");
+
+	return att_handle_rsp(att, buf->data, buf->len, 0);
+}
+
 static u8_t att_handle_write_rsp(struct bt_att *att, struct net_buf *buf)
 {
 	BT_DBG("");
@@ -1785,6 +1793,10 @@ static const struct att_handler {
 		sizeof(struct bt_att_read_group_req),
 		ATT_REQUEST,
 		att_read_group_req },
+	{ BT_ATT_OP_READ_GROUP_RSP,
+		sizeof(struct bt_att_read_group_rsp),
+		ATT_RESPONSE,
+		att_handle_read_group_rsp },
 	{ BT_ATT_OP_WRITE_REQ,
 		sizeof(struct bt_att_write_req),
 		ATT_REQUEST,
@@ -1852,7 +1864,7 @@ static att_type_t att_op_get_type(u8_t op)
 	return ATT_UNKNOWN;
 }
 
-static void bt_att_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
+static int bt_att_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 {
 	struct bt_att *att = ATT_CHAN(chan);
 	struct bt_att_hdr *hdr = (void *)buf->data;
@@ -1862,7 +1874,7 @@ static void bt_att_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 
 	if (buf->len < sizeof(*hdr)) {
 		BT_ERR("Too small ATT PDU received");
-		return;
+		return 0;
 	}
 
 	BT_DBG("Received ATT code 0x%02x len %u", hdr->code, buf->len);
@@ -1882,19 +1894,19 @@ static void bt_att_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 			send_err_rsp(chan->conn, hdr->code, 0,
 				     BT_ATT_ERR_NOT_SUPPORTED);
 		}
-		return;
+		return 0;
 	}
 
 	if (IS_ENABLED(CONFIG_BT_ATT_ENFORCE_FLOW)) {
 		if (handler->type == ATT_REQUEST &&
 		    atomic_test_and_set_bit(att->flags, ATT_PENDING_RSP)) {
 			BT_WARN("Ignoring unexpected request");
-			return;
+			return 0;
 		} else if (handler->type == ATT_INDICATION &&
 			   atomic_test_and_set_bit(att->flags,
 						   ATT_PENDING_CFM)) {
 			BT_WARN("Ignoring unexpected indication");
-			return;
+			return 0;
 		}
 	}
 
@@ -1909,6 +1921,8 @@ static void bt_att_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 		BT_DBG("ATT error 0x%02x", err);
 		send_err_rsp(chan->conn, hdr->code, 0, err);
 	}
+
+	return 0;
 }
 
 static struct bt_att *att_chan_get(struct bt_conn *conn)
