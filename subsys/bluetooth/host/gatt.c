@@ -96,6 +96,27 @@ static ssize_t read_appearance(struct bt_conn *conn,
 				 sizeof(appearance));
 }
 
+#if defined (CONFIG_BT_GAP_PERIPHERAL_PREF_PARAMS)
+static ssize_t read_ppcp(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			 void *buf, u16_t len, u16_t offset)
+{
+	struct __packed {
+		uint16_t min_int;
+		uint16_t max_int;
+		uint16_t latency;
+		uint16_t timeout;
+	} ppcp;
+
+	ppcp.min_int = sys_cpu_to_le16(CONFIG_BT_PERIPHERAL_PREF_MIN_INT);
+	ppcp.max_int = sys_cpu_to_le16(CONFIG_BT_PERIPHERAL_PREF_MAX_INT);
+	ppcp.latency = sys_cpu_to_le16(CONFIG_BT_PERIPHERAL_PREF_SLAVE_LATENCY);
+	ppcp.timeout = sys_cpu_to_le16(CONFIG_BT_PERIPHERAL_PREF_TIMEOUT);
+
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &ppcp,
+				 sizeof(ppcp));
+}
+#endif
+
 #if defined(CONFIG_BT_CENTRAL) && defined(CONFIG_BT_PRIVACY)
 static ssize_t read_central_addr_res(struct bt_conn *conn,
 				     const struct bt_gatt_attr *attr, void *buf,
@@ -127,6 +148,10 @@ static struct bt_gatt_attr gap_attrs[] = {
 			       BT_GATT_CHRC_READ, BT_GATT_PERM_READ,
 			       read_central_addr_res, NULL, NULL),
 #endif /* CONFIG_BT_CENTRAL && CONFIG_BT_PRIVACY */
+#if defined(CONFIG_BT_GAP_PERIPHERAL_PREF_PARAMS)
+	BT_GATT_CHARACTERISTIC(BT_UUID_GAP_PPCP, BT_GATT_CHRC_READ,
+			       BT_GATT_PERM_READ, read_ppcp, NULL, NULL),
+#endif
 };
 
 static struct bt_gatt_service gap_svc = BT_GATT_SERVICE(gap_attrs);
@@ -364,7 +389,7 @@ ssize_t bt_gatt_attr_read(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 	BT_DBG("handle 0x%04x offset %u length %u", attr->handle, offset,
 	       len);
 
-	memcpy(buf, value + offset, len);
+	memcpy(buf, (u8_t *)value + offset, len);
 
 	return len;
 }
@@ -1383,7 +1408,7 @@ static u16_t parse_include(struct bt_conn *conn, const void *pdu,
 
 	/* Parse include found */
 	for (length--, pdu = rsp->data; length >= rsp->len;
-	     length -= rsp->len, pdu += rsp->len) {
+	     length -= rsp->len, pdu = (const u8_t *)pdu + rsp->len) {
 		struct bt_gatt_attr *attr;
 		const struct bt_att_data *data = pdu;
 		struct gatt_incl *incl = (void *)data->value;
@@ -1476,7 +1501,7 @@ static u16_t parse_characteristic(struct bt_conn *conn, const void *pdu,
 
 	/* Parse characteristics found */
 	for (length--, pdu = rsp->data; length >= rsp->len;
-	     length -= rsp->len, pdu += rsp->len) {
+	     length -= rsp->len, pdu = (const u8_t *)pdu + rsp->len) {
 		struct bt_gatt_attr *attr;
 		const struct bt_att_data *data = pdu;
 		struct gatt_chrc *chrc = (void *)data->value;
@@ -1604,7 +1629,7 @@ static u16_t parse_service(struct bt_conn *conn, const void *pdu,
 
 	/* Parse services found */
 	for (length--, pdu = rsp->data; length >= rsp->len;
-	     length -= rsp->len, pdu += rsp->len) {
+	     length -= rsp->len, pdu = (const u8_t *)pdu + rsp->len) {
 		struct bt_gatt_attr attr = {};
 		struct bt_gatt_service_val value;
 		const struct bt_att_group_data *data = pdu;
@@ -1749,7 +1774,7 @@ static void gatt_find_info_rsp(struct bt_conn *conn, u8_t err,
 
 	/* Parse descriptors found */
 	for (length--, pdu = rsp->info; length >= len;
-	     length -= len, pdu += len) {
+	     length -= len, pdu = (const u8_t *)pdu + len) {
 		struct bt_gatt_attr *attr;
 
 		info.i16 = pdu;
@@ -2101,7 +2126,7 @@ static int gatt_prepare_write(struct bt_conn *conn,
 
 	/* Update params */
 	params->offset += len;
-	params->data += len;
+	params->data = (const u8_t *)params->data + len;
 	params->length -= len;
 
 	BT_DBG("handle 0x%04x offset %u len %u", params->handle, params->offset,

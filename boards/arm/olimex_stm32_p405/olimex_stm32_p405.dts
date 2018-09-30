@@ -5,7 +5,7 @@
  */
 
 /dts-v1/;
-#include <st/stm32f405.dtsi>
+#include <st/f4/stm32f405Xg.dtsi>
 
 / {
 	model = "Olimex STM32-P405 board";
@@ -20,7 +20,7 @@
 
 	leds {
 		compatible = "gpio-leds";
-		green_led_1: led@0 {
+		green_led_1: led_1 {
 			gpios = <&gpioc 12 GPIO_INT_ACTIVE_HIGH>;
 			label = "LED1";
 		};
