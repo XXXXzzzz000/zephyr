@@ -76,7 +76,7 @@ static SlSockAddr_t *translate_z_to_sl_addrs(const struct sockaddr *addr,
 		*sl_addrlen = sizeof(SlSockAddrIn_t);
 		sl_addr_in->sin_family = AF_INET;
 		sl_addr_in->sin_port = z_sockaddr_in->sin_port;
-		sl_addr_in->sin_addr.S_un.S_addr =
+		sl_addr_in->sin_addr.s_addr =
 			z_sockaddr_in->sin_addr.s_addr;
 
 		sl_addr = (SlSockAddr_t *)sl_addr_in;
@@ -114,7 +114,7 @@ static void translate_sl_to_z_addr(SlSockAddr_t *sl_addr,
 			z_sockaddr_in->sin_family = AF_INET;
 			z_sockaddr_in->sin_port = sl_addr_in->sin_port;
 			z_sockaddr_in->sin_addr.s_addr =
-				sl_addr_in->sin_addr.S_un.S_addr;
+				sl_addr_in->sin_addr.s_addr;
 			*addrlen = sizeof(struct sockaddr_in);
 		} else {
 			*addrlen = sl_addrlen;
@@ -506,6 +506,24 @@ exit:
 	return _SlDrvSetErrno(retval);
 }
 
+static int simplelink_getaddrinfo(const char *node, const char *service,
+				  const struct addrinfo *hints,
+				  struct addrinfo **res)
+{
+	ARG_UNUSED(node);
+	ARG_UNUSED(service);
+	ARG_UNUSED(hints);
+	ARG_UNUSED(res);
+
+	errno = ENOTSUP;
+	return EAI_SYSTEM;
+}
+
+static void simplelink_freeaddrinfo(struct addrinfo *res)
+{
+	ARG_UNUSED(res);
+}
+
 const struct socket_offload simplelink_ops = {
 	.socket = simplelink_socket,
 	.close = simplelink_close,
@@ -520,4 +538,6 @@ const struct socket_offload simplelink_ops = {
 	.recvfrom = simplelink_recvfrom,
 	.send = simplelink_send,
 	.sendto = simplelink_sendto,
+	.getaddrinfo = simplelink_getaddrinfo,
+	.freeaddrinfo = simplelink_freeaddrinfo,
 };
