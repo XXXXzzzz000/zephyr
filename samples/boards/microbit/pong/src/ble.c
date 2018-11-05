@@ -6,7 +6,6 @@
 
 #include <zephyr.h>
 #include <misc/printk.h>
-#include <board.h>
 #include <gpio.h>
 #include <device.h>
 #include <string.h>
@@ -171,7 +170,7 @@ static u8_t discover_func(struct bt_conn *conn,
 
 	if (!attr) {
 		printk("Discover complete\n");
-		memset(&discov_param, 0, sizeof(discov_param));
+		(void)memset(&discov_param, 0, sizeof(discov_param));
 		return BT_GATT_ITER_STOP;
 	}
 

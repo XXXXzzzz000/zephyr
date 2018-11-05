@@ -15,6 +15,7 @@
 #include <bluetooth/mesh.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_FRIEND)
+#define LOG_MODULE_NAME bt_mesh_friend
 #include "common/log.h"
 
 #include "crypto.h"
@@ -191,7 +192,7 @@ static void friend_clear(struct bt_mesh_friend *frnd)
 	frnd->fsn = 0;
 	frnd->queue_size = 0;
 	frnd->pending_req = 0;
-	memset(frnd->sub_list, 0, sizeof(frnd->sub_list));
+	(void)memset(frnd->sub_list, 0, sizeof(frnd->sub_list));
 }
 
 void bt_mesh_friend_clear_net_idx(u16_t net_idx)

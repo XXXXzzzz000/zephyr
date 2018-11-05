@@ -73,3 +73,17 @@
 		KEEP(*(".log_backends"));
 		__log_backends_end = .;
 	} GROUP_LINK_IN(ROMABLE_REGION)
+
+	SECTION_DATA_PROLOGUE(shell_root_cmds_sections, (OPTIONAL),)
+	{
+		__shell_root_cmds_start = .;
+		KEEP(*(SORT(.shell_root_cmd_*)));
+		__shell_root_cmds_end = .;
+	} GROUP_LINK_IN(ROMABLE_REGION)
+
+	SECTION_DATA_PROLOGUE(font_entry_sections, (OPTIONAL),)
+	{
+		__font_entry_start = .;
+		KEEP(*(SORT_BY_NAME(".font_entry.*")))
+		__font_entry_end = .;
+	} GROUP_LINK_IN(ROMABLE_REGION)

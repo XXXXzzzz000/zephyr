@@ -8,10 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_ICMPV4)
-#define SYS_LOG_DOMAIN "net/icmpv4"
-#define NET_LOG_ENABLED 1
-#endif
+#define LOG_MODULE_NAME net_icmpv4
+#define NET_LOG_LEVEL CONFIG_NET_ICMPV4_LOG_LEVEL
 
 #include <errno.h>
 #include <misc/slist.h>
@@ -107,12 +105,13 @@ static inline enum net_verdict icmpv4_handle_echo_request(struct net_pkt *pkt)
 	int ret;
 
 	NET_DBG("Received Echo Request from %s to %s",
-		net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src),
-		net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst));
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src)),
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst)));
 
 	net_ipaddr_copy(&addr, &NET_IPV4_HDR(pkt)->src);
 	net_ipaddr_copy(&NET_IPV4_HDR(pkt)->src,
-			&NET_IPV4_HDR(pkt)->dst);
+			net_if_ipv4_select_src_addr(net_pkt_iface(pkt),
+						    &addr));
 	net_ipaddr_copy(&NET_IPV4_HDR(pkt)->dst, &addr);
 
 	icmp_hdr.type = NET_ICMPV4_ECHO_REPLY;
@@ -123,14 +122,11 @@ static inline enum net_verdict icmpv4_handle_echo_request(struct net_pkt *pkt)
 		return NET_DROP;
 	}
 
-	ret = net_icmpv4_set_chksum(pkt);
-	if (ret < 0) {
-		return NET_DROP;
-	}
+	net_ipv4_finalize(pkt, IPPROTO_ICMP);
 
 	NET_DBG("Sending Echo Reply from %s to %s",
-		net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src),
-		net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst));
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src)),
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst)));
 
 	if (net_send_data(pkt) < 0) {
 		net_stats_update_icmp_drop(net_pkt_iface(pkt));
@@ -206,8 +202,8 @@ int net_icmpv4_send_echo_request(struct net_if *iface,
 
 	NET_DBG("Sending ICMPv4 Echo Request type %d from %s to %s",
 		NET_ICMPV4_ECHO_REQUEST,
-		net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src),
-		net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst));
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src)),
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst)));
 
 	if (net_send_data(pkt) >= 0) {
 		net_stats_update_icmp_sent(iface);
@@ -300,13 +296,13 @@ int net_icmpv4_send_error(struct net_pkt *orig, u8_t type, u8_t code)
 
 	net_ipv4_finalize(pkt, IPPROTO_ICMP);
 
-	net_pkt_ll_dst(pkt)->addr = net_pkt_ll_src(orig)->addr;
-	net_pkt_ll_dst(pkt)->len = net_pkt_ll_src(orig)->len;
+	net_pkt_lladdr_dst(pkt)->addr = net_pkt_lladdr_src(orig)->addr;
+	net_pkt_lladdr_dst(pkt)->len = net_pkt_lladdr_src(orig)->len;
 
 	NET_DBG("Sending ICMPv4 Error Message type %d code %d from %s to %s",
 		type, code,
-		net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src),
-		net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst));
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src)),
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst)));
 
 	if (net_send_data(pkt) >= 0) {
 		net_stats_update_icmp_sent(iface);
@@ -344,6 +340,20 @@ enum net_verdict net_icmpv4_input(struct net_pkt *pkt)
 		return NET_DROP;
 	}
 
+	if (!icmp_hdr.chksum) {
+		NET_DBG("Invalid zero ICMPv4 checksum - dropping");
+		goto drop;
+	}
+
+	if (net_ipv4_is_addr_bcast(net_pkt_iface(pkt),
+				   &NET_IPV4_HDR(pkt)->dst)) {
+		if (!IS_ENABLED(CONFIG_NET_ICMPV4_ACCEPT_BROADCAST) ||
+		    icmp_hdr.type != NET_ICMPV4_ECHO_REQUEST) {
+			NET_DBG("Dropping broadcast pkt");
+			goto drop;
+		}
+	}
+
 	NET_DBG("ICMPv4 packet received type %d code %d",
 		icmp_hdr.type, icmp_hdr.code);
 
@@ -356,6 +366,7 @@ enum net_verdict net_icmpv4_input(struct net_pkt *pkt)
 		}
 	}
 
+drop:
 	net_stats_update_icmp_drop(net_pkt_iface(pkt));
 
 	return NET_DROP;

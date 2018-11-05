@@ -8,15 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_IPV6)
-#define SYS_LOG_DOMAIN "net/ipv6-frag"
-#define NET_LOG_ENABLED 1
-
-/* By default this prints too much data, set the value to 1 to see
- * neighbor cache contents.
- */
-#define NET_DEBUG_NBR 0
-#endif
+#define LOG_MODULE_NAME net_ipv6_frag
+#define NET_LOG_LEVEL CONFIG_NET_IPV6_LOG_LEVEL
 
 #include <errno.h>
 #include <net/net_core.h>
@@ -106,6 +99,7 @@ int net_ipv6_find_last_ext_hdr(struct net_pkt *pkt, u16_t *next_hdr_idx,
 			break;
 
 		case NET_IPV6_NEXTHDR_HBHO:
+		case NET_IPV6_NEXTHDR_DESTO:
 			length = 0;
 			frag = net_frag_read_u8(frag, offset, &offset,
 						(u8_t *)&length);
@@ -276,8 +270,8 @@ static void reassembly_info(char *str, struct net_ipv6_reassembly *reass)
 	}
 
 	NET_DBG("%s id 0x%x src %s dst %s remain %d ms len %d", str, reass->id,
-		net_sprint_ipv6_addr(&reass->src),
-		net_sprint_ipv6_addr(&reass->dst),
+		log_strdup(net_sprint_ipv6_addr(&reass->src)),
+		log_strdup(net_sprint_ipv6_addr(&reass->dst)),
 		k_delayed_work_remaining_get(&reass->timer), len);
 }
 
@@ -761,8 +755,8 @@ fail:
 int net_ipv6_send_fragmented_pkt(struct net_if *iface, struct net_pkt *pkt,
 				 u16_t pkt_len)
 {
+	struct net_buf *rest = NULL;
 	struct net_pkt *clone;
-	struct net_buf *rest;
 	struct net_buf *temp;
 	u16_t next_hdr_idx;
 	u16_t last_hdr_idx;

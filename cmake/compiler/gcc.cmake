@@ -49,9 +49,15 @@ else()
     set(cplusplus_compiler ${CMAKE_C_COMPILER})
   endif()
 endif()
-set(CMAKE_CXX_COMPILER ${cplusplus_compiler}     CACHE INTERNAL " " FORCE)
+find_program(CMAKE_CXX_COMPILER ${cplusplus_compiler} PATH ${TOOLCHAIN_HOME} NO_DEFAULT_PATH)
 
 set(NOSTDINC "")
+
+# Note that NOSYSDEF_CFLAG may be an empty string, and
+# set_ifndef() does not work with empty string.
+if(NOT DEFINED NOSYSDEF_CFLAG)
+  set(NOSYSDEF_CFLAG -undef)
+endif()
 
 foreach(file_name include include-fixed)
   execute_process(
@@ -93,7 +99,7 @@ else()
     if(CONFIG_FLOAT)
       list(APPEND TOOLCHAIN_C_FLAGS -mfpu=${FPU_FOR_${GCC_M_CPU}})
       if    (CONFIG_FP_SOFTABI)
-        list(APPEND TOOLCHAIN_C_FLAGS -mfloat-abi=soft)
+        list(APPEND TOOLCHAIN_C_FLAGS -mfloat-abi=softfp)
       elseif(CONFIG_FP_HARDABI)
         list(APPEND TOOLCHAIN_C_FLAGS -mfloat-abi=hard)
       endif()

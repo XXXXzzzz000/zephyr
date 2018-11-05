@@ -6,6 +6,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define LOG_MODULE_NAME net_test
+#define NET_LOG_LEVEL CONFIG_NET_UTILS_LOG_LEVEL
+
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
@@ -1280,7 +1283,7 @@ void test_addr_parse(void)
 
 #if defined(CONFIG_NET_IPV4)
 	for (i = 0; i < ARRAY_SIZE(parse_ipv4_entries) - 1; i++) {
-		memset(&addr, 0, sizeof(addr));
+		(void)memset(&addr, 0, sizeof(addr));
 
 		ret = net_ipaddr_parse(
 			parse_ipv4_entries[i].address,
@@ -1309,7 +1312,7 @@ void test_addr_parse(void)
 #endif
 #if defined(CONFIG_NET_IPV6)
 	for (i = 0; i < ARRAY_SIZE(parse_ipv6_entries) - 1; i++) {
-		memset(&addr, 0, sizeof(addr));
+		(void)memset(&addr, 0, sizeof(addr));
 
 		ret = net_ipaddr_parse(
 			parse_ipv6_entries[i].address,
@@ -1344,12 +1347,14 @@ void test_net_pkt_addr_parse(void)
 	static struct ipv6_test_data {
 		const unsigned char *payload;
 		int payload_len;
+		u8_t proto;
 		struct sockaddr_in6 src;
 		struct sockaddr_in6 dst;
 	} ipv6_test_data_set[] = {
 		{
 			.payload = v6_udp_pkt1,
 			.payload_len = sizeof(v6_udp_pkt1),
+			.proto = IPPROTO_UDP,
 			.src = {
 				.sin6_family = AF_INET6,
 				.sin6_port = htons(5353),
@@ -1383,6 +1388,7 @@ void test_net_pkt_addr_parse(void)
 		{
 			.payload = v6_tcp_pkt1,
 			.payload_len = sizeof(v6_tcp_pkt1),
+			.proto = IPPROTO_TCP,
 			.src = {
 				.sin6_family = AF_INET6,
 				.sin6_port = htons(62032),
@@ -1420,12 +1426,14 @@ void test_net_pkt_addr_parse(void)
 	static struct ipv4_test_data {
 		const unsigned char *payload;
 		int payload_len;
+		u8_t proto;
 		struct sockaddr_in src;
 		struct sockaddr_in dst;
 	} ipv4_test_data_set[] = {
 		{
 			.payload = v4_tcp_pkt1,
 			.payload_len = sizeof(v4_tcp_pkt1),
+			.proto = IPPROTO_TCP,
 			.src = {
 				.sin_family = AF_INET,
 				.sin_port = htons(22),
@@ -1451,6 +1459,7 @@ void test_net_pkt_addr_parse(void)
 		{
 			.payload = v4_udp_pkt1,
 			.payload_len = sizeof(v4_udp_pkt1),
+			.proto = IPPROTO_UDP,
 			.src = {
 				.sin_family = AF_INET,
 				.sin_port = htons(64426),
@@ -1505,6 +1514,7 @@ void test_net_pkt_addr_parse(void)
 
 		net_pkt_set_ip_hdr_len(pkt, sizeof(struct net_ipv6_hdr));
 		net_pkt_set_family(pkt, AF_INET6);
+		net_pkt_set_transport_proto(pkt, data->proto);
 
 		zassert_equal(net_pkt_get_src_addr(pkt,
 						   (struct sockaddr *)&addr,
@@ -1561,6 +1571,7 @@ void test_net_pkt_addr_parse(void)
 
 		net_pkt_set_ip_hdr_len(pkt, sizeof(struct net_ipv4_hdr));
 		net_pkt_set_family(pkt, AF_INET);
+		net_pkt_set_transport_proto(pkt, data->proto);
 
 		zassert_equal(net_pkt_get_src_addr(pkt,
 						   (struct sockaddr *)&addr,

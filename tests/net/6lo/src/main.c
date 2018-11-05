@@ -6,6 +6,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define LOG_MODULE_NAME net_test
+#define NET_LOG_LEVEL CONFIG_NET_6LO_LOG_LEVEL
+
 #include <zephyr.h>
 #include <ztest.h>
 #include <linker/sections.h>
@@ -317,11 +320,11 @@ static struct net_pkt *create_pkt(struct net_6lo_data *data)
 	net_pkt_set_iface(pkt, net_if_get_default());
 	net_pkt_set_ip_hdr_len(pkt, NET_IPV6H_LEN);
 
-	net_pkt_ll_src(pkt)->addr = src_mac;
-	net_pkt_ll_src(pkt)->len = 8;
+	net_pkt_lladdr_src(pkt)->addr = src_mac;
+	net_pkt_lladdr_src(pkt)->len = 8;
 
-	net_pkt_ll_dst(pkt)->addr = dst_mac;
-	net_pkt_ll_dst(pkt)->len = 8;
+	net_pkt_lladdr_dst(pkt)->addr = dst_mac;
+	net_pkt_lladdr_dst(pkt)->len = 8;
 
 	frag = net_pkt_get_frag(pkt, K_FOREVER);
 	if (!frag) {

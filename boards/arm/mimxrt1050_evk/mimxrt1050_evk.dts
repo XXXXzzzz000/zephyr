@@ -19,8 +19,10 @@
 		gpio-4= &gpio4;
 		gpio-5= &gpio5;
 		uart-1 = &uart1;
+		uart-3 = &uart3;
 		led0 = &green_led;
 		sw0 = &user_button;
+		spi-3 = &spi3;
 	};
 
 	chosen {
@@ -43,20 +45,22 @@
 
 	leds {
 		compatible = "gpio-leds";
-		green_led: led@0 {
-			gpios = <&gpio1 9 GPIO_INT_ACTIVE_LOW>;
+		green_led: led_0 {
+			gpios = <&gpio1 9 0>;
 			label = "User LD1";
 		};
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		user_button: button@0 {
+		user_button: button_0 {
 			label = "User SW8";
 			gpios = <&gpio5 0 GPIO_INT_ACTIVE_LOW>;
 		};
 	};
 };
+
+arduino_serial: &uart3 {};
 
 &flexspi0 {
 	hyperflash0: hyperflash@0 {
@@ -83,4 +87,8 @@
 &uart1 {
 	status = "ok";
 	current-speed = <115200>;
+};
+
+&spi3 {
+	status = "ok";
 };

@@ -4,15 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if 1
-#define SYS_LOG_DOMAIN "rpl-node"
-#define NET_SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
-#define NET_LOG_ENABLED 1
-#endif
+#define LOG_MODULE_NAME net_rpl_node
+#define NET_LOG_LEVEL LOG_LEVEL_DBG
 
 #include <zephyr.h>
 #include <errno.h>
-#include <board.h>
 
 #include <misc/byteorder.h>
 #include <net/net_core.h>
@@ -239,7 +235,7 @@ static int append_rpl_parent(struct coap_packet *response)
 		parent = net_rpl_get_parent_addr(net_pkt_iface(response->pkt),
 					rpl->current_dag->preferred_parent);
 		pos = snprintk(&out[out_len], sizeof(out), "%s",
-			       net_sprint_ipv6_addr(parent));
+			       log_strdup(net_sprint_ipv6_addr(parent)));
 		out_len += pos;
 	}
 

@@ -13,6 +13,12 @@ config USB_DEVICE_HID
 
 if USB_DEVICE_HID
 
+config ENABLE_HID_INT_OUT_EP
+	bool
+	prompt "Enable USB HID Device Interrupt OUT Endpoint"
+	help
+	  Enable USB HID Device Interrupt OUT Endpoint.
+
 config HID_INTERRUPT_EP_MPS
 	int "USB HID Device Interrupt Endpoint size"
 	default 16
@@ -24,5 +30,11 @@ config USB_HID_MAX_PAYLOAD_SIZE
 	default 64
 	help
 	  Max allowed payload size over USB HID Class
+
+config USB_HID_POLL_INTERVAL_MS
+	int "Polling interval"
+	default 9
+	help
+	  Polling interval in ms selected by the USB HID Device.
 
 endif # USB_DEVICE_HID

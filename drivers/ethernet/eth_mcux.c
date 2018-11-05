@@ -13,11 +13,12 @@
  * error behaviour.
  */
 
-#define SYS_LOG_DOMAIN "dev/eth_mcux"
-#define SYS_LOG_LEVEL CONFIG_SYS_LOG_ETHERNET_LEVEL
-#include <logging/sys_log.h>
+#define LOG_MODULE_NAME eth_mcux
+#define LOG_LEVEL CONFIG_ETHERNET_LOG_LEVEL
 
-#include <board.h>
+#include <logging/log.h>
+LOG_MODULE_REGISTER(LOG_MODULE_NAME);
+
 #include <device.h>
 #include <misc/util.h>
 #include <kernel.h>
@@ -194,7 +195,7 @@ static void eth_mcux_phy_enter_reset(struct eth_context *context)
 static void eth_mcux_phy_start(struct eth_context *context)
 {
 #ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
-	SYS_LOG_DBG("phy_state=%s", phy_state_name(context->phy_state));
+	LOG_DBG("phy_state=%s", phy_state_name(context->phy_state));
 #endif
 
 	context->enabled = true;
@@ -218,7 +219,7 @@ static void eth_mcux_phy_start(struct eth_context *context)
 void eth_mcux_phy_stop(struct eth_context *context)
 {
 #ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
-	SYS_LOG_DBG("phy_state=%s", phy_state_name(context->phy_state));
+	LOG_DBG("phy_state=%s", phy_state_name(context->phy_state));
 #endif
 
 	context->enabled = false;
@@ -255,7 +256,7 @@ static void eth_mcux_phy_event(struct eth_context *context)
 	const u32_t phy_addr = 0;
 
 #ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
-	SYS_LOG_DBG("phy_state=%s", phy_state_name(context->phy_state));
+	LOG_DBG("phy_state=%s", phy_state_name(context->phy_state));
 #endif
 	switch (context->phy_state) {
 	case eth_mcux_phy_state_initial:
@@ -305,7 +306,7 @@ static void eth_mcux_phy_event(struct eth_context *context)
 			context->phy_state = eth_mcux_phy_state_read_duplex;
 			net_eth_carrier_on(context->iface);
 		} else if (!link_up && context->link_up) {
-			SYS_LOG_INF("Link down");
+			LOG_INF("Link down");
 			context->link_up = link_up;
 			k_delayed_work_submit(&context->delayed_phy_work,
 					      CONFIG_ETH_MCUX_PHY_TICK_MS);
@@ -333,9 +334,9 @@ static void eth_mcux_phy_event(struct eth_context *context)
 				    (enet_mii_duplex_t) phy_duplex);
 		}
 
-		SYS_LOG_INF("Enabled %sM %s-duplex mode.",
-			    (phy_speed ? "100" : "10"),
-			    (phy_duplex ? "full" : "half"));
+		LOG_INF("Enabled %sM %s-duplex mode.",
+			(phy_speed ? "100" : "10"),
+			(phy_duplex ? "full" : "half"));
 		k_delayed_work_submit(&context->delayed_phy_work,
 				      CONFIG_ETH_MCUX_PHY_TICK_MS);
 		context->phy_state = eth_mcux_phy_state_wait;
@@ -413,22 +414,21 @@ static bool eth_get_ptp_data(struct net_if *iface, struct net_pkt *pkt,
 		ptpTsData->sequenceId = ntohs(hdr->sequence_id);
 
 #ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
-		SYS_LOG_DBG("PTP packet: ver %d type %d len %d "
-			    "clk %02x%02x%02x%02x%02x%02x%02x%02x port %d "
-			    "seq %d",
-			    ptpTsData->version,
-			    ptpTsData->messageType,
-			    ntohs(hdr->message_length),
-			    hdr->port_id.clk_id[0],
-			    hdr->port_id.clk_id[1],
-			    hdr->port_id.clk_id[2],
-			    hdr->port_id.clk_id[3],
-			    hdr->port_id.clk_id[4],
-			    hdr->port_id.clk_id[5],
-			    hdr->port_id.clk_id[6],
-			    hdr->port_id.clk_id[7],
-			    ntohs(hdr->port_id.port_number),
-			    ptpTsData->sequenceId);
+		LOG_DBG("PTP packet: ver %d type %d len %d seq %d",
+			ptpTsData->version,
+			ptpTsData->messageType,
+			ntohs(hdr->message_length),
+			ptpTsData->sequenceId);
+		LOG_DBG("  clk %02x%02x%02x%02x%02x%02x%02x%02x port %d",
+			hdr->port_id.clk_id[0],
+			hdr->port_id.clk_id[1],
+			hdr->port_id.clk_id[2],
+			hdr->port_id.clk_id[3],
+			hdr->port_id.clk_id[4],
+			hdr->port_id.clk_id[5],
+			hdr->port_id.clk_id[6],
+			hdr->port_id.clk_id[7],
+			ntohs(hdr->port_id.port_number));
 #endif
 	}
 
@@ -506,7 +506,7 @@ static int eth_tx(struct net_if *iface, struct net_pkt *pkt)
 	irq_unlock(imask);
 
 	if (status) {
-		SYS_LOG_ERR("ENET_SendFrame error: %d", (int)status);
+		LOG_ERR("ENET_SendFrame error: %d", (int)status);
 		return -1;
 	}
 
@@ -535,7 +535,7 @@ static void eth_rx(struct device *iface)
 	if (status) {
 		enet_data_error_stats_t error_stats;
 
-		SYS_LOG_ERR("ENET_GetRxFrameSize return: %d", (int)status);
+		LOG_ERR("ENET_GetRxFrameSize return: %d", (int)status);
 
 		ENET_GetRxErrBeforeReadFrame(&context->enet_handle,
 					     &error_stats);
@@ -564,7 +564,7 @@ static void eth_rx(struct device *iface)
 	}
 
 	if (sizeof(context->frame_buf) < frame_length) {
-		SYS_LOG_ERR("frame too large (%d)", frame_length);
+		LOG_ERR("frame too large (%d)", frame_length);
 		net_pkt_unref(pkt);
 		status = ENET_ReadFrame(ENET, &context->enet_handle, NULL, 0);
 		assert(status == kStatus_Success);
@@ -580,7 +580,7 @@ static void eth_rx(struct device *iface)
 				context->frame_buf, frame_length);
 	if (status) {
 		irq_unlock(imask);
-		SYS_LOG_ERR("ENET_ReadFrame failed: %d", (int)status);
+		LOG_ERR("ENET_ReadFrame failed: %d", (int)status);
 		net_pkt_unref(pkt);
 		return;
 	}
@@ -594,7 +594,7 @@ static void eth_rx(struct device *iface)
 		pkt_buf = net_pkt_get_frag(pkt, K_NO_WAIT);
 		if (!pkt_buf) {
 			irq_unlock(imask);
-			SYS_LOG_ERR("Failed to get fragment buf");
+			LOG_ERR("Failed to get fragment buf");
 			net_pkt_unref(pkt);
 			assert(status == kStatus_Success);
 			return;
@@ -690,7 +690,7 @@ static inline void ts_register_tx_event(struct eth_context *context)
 		net_pkt_unref(pkt);
 	} else {
 		if (IS_ENABLED(CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG) && pkt) {
-			SYS_LOG_ERR("pkt %p already freed", pkt);
+			LOG_ERR("pkt %p already freed", pkt);
 		}
 	}
 
@@ -785,7 +785,7 @@ static int eth_0_init(struct device *dev)
 #if defined(CONFIG_PTP_CLOCK_MCUX)
 	ts_tx_rd = 0;
 	ts_tx_wr = 0;
-	memset(ts_tx_pkt, 0, sizeof(ts_tx_pkt));
+	(void)memset(ts_tx_pkt, 0, sizeof(ts_tx_pkt));
 #endif
 
 	k_sem_init(&context->tx_buf_sem,
@@ -839,10 +839,10 @@ static int eth_0_init(struct device *dev)
 
 	ENET_SetSMI(ENET, sys_clock, false);
 
-	SYS_LOG_DBG("MAC %02x:%02x:%02x:%02x:%02x:%02x",
-		    context->mac_addr[0], context->mac_addr[1],
-		    context->mac_addr[2], context->mac_addr[3],
-		    context->mac_addr[4], context->mac_addr[5]);
+	LOG_DBG("MAC %02x:%02x:%02x:%02x:%02x:%02x",
+		context->mac_addr[0], context->mac_addr[1],
+		context->mac_addr[2], context->mac_addr[3],
+		context->mac_addr[4], context->mac_addr[5]);
 
 	ENET_SetCallback(&context->enet_handle, eth_callback, dev);
 	eth_0_config_func();
@@ -981,22 +981,22 @@ ETH_NET_DEVICE_INIT(eth_mcux_0, CONFIG_ETH_MCUX_0_NAME, eth_0_init,
 
 static void eth_0_config_func(void)
 {
-	IRQ_CONNECT(IRQ_ETH_RX, CONFIG_ETH_MCUX_0_IRQ_PRI,
+	IRQ_CONNECT(CONFIG_IRQ_ETH_RX, CONFIG_ETH_MCUX_0_IRQ_PRI,
 		    eth_mcux_rx_isr, DEVICE_GET(eth_mcux_0), 0);
-	irq_enable(IRQ_ETH_RX);
+	irq_enable(CONFIG_IRQ_ETH_RX);
 
-	IRQ_CONNECT(IRQ_ETH_TX, CONFIG_ETH_MCUX_0_IRQ_PRI,
+	IRQ_CONNECT(CONFIG_IRQ_ETH_TX, CONFIG_ETH_MCUX_0_IRQ_PRI,
 		    eth_mcux_tx_isr, DEVICE_GET(eth_mcux_0), 0);
-	irq_enable(IRQ_ETH_TX);
+	irq_enable(CONFIG_IRQ_ETH_TX);
 
-	IRQ_CONNECT(IRQ_ETH_ERR_MISC, CONFIG_ETH_MCUX_0_IRQ_PRI,
+	IRQ_CONNECT(CONFIG_IRQ_ETH_ERR_MISC, CONFIG_ETH_MCUX_0_IRQ_PRI,
 		    eth_mcux_error_isr, DEVICE_GET(eth_mcux_0), 0);
-	irq_enable(IRQ_ETH_ERR_MISC);
+	irq_enable(CONFIG_IRQ_ETH_ERR_MISC);
 
 #if defined(CONFIG_PTP_CLOCK_MCUX)
-	IRQ_CONNECT(IRQ_ETH_IEEE1588_TMR, CONFIG_ETH_MCUX_0_IRQ_PRI,
+	IRQ_CONNECT(CONFIG_IRQ_ETH_IEEE1588_TMR, CONFIG_ETH_MCUX_0_IRQ_PRI,
 		    eth_mcux_ptp_isr, DEVICE_GET(eth_mcux_0), 0);
-	irq_enable(IRQ_ETH_IEEE1588_TMR);
+	irq_enable(CONFIG_IRQ_ETH_IEEE1588_TMR);
 #endif
 }
 

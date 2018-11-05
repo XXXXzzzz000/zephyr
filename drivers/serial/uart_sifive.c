@@ -11,7 +11,6 @@
 #include <kernel.h>
 #include <arch/cpu.h>
 #include <uart.h>
-#include <board.h>
 
 #define RXDATA_EMPTY   (1 << 31)   /* Receive FIFO Empty */
 #define RXDATA_MASK    0xFF        /* Receive Data Mask */
@@ -386,7 +385,7 @@ static void uart_sifive_irq_cfg_func_0(void);
 
 static const struct uart_sifive_device_config uart_sifive_dev_cfg_0 = {
 	.port         = CONFIG_SIFIVE_UART_0_BASE_ADDR,
-	.sys_clk_freq = uart_sifive_port_0_clk_freq,
+	.sys_clk_freq = CONFIG_SIFIVE_UART_0_CLK_FREQ,
 	.baud_rate    = CONFIG_SIFIVE_UART_0_CURRENT_SPEED,
 	.rxcnt_irq    = CONFIG_UART_SIFIVE_PORT_0_RXCNT_IRQ,
 	.txcnt_irq    = CONFIG_UART_SIFIVE_PORT_0_TXCNT_IRQ,
@@ -425,7 +424,7 @@ static void uart_sifive_irq_cfg_func_1(void);
 
 static const struct uart_sifive_device_config uart_sifive_dev_cfg_1 = {
 	.port         = CONFIG_SIFIVE_UART_1_BASE_ADDR,
-	.sys_clk_freq = uart_sifive_port_1_clk_freq,
+	.sys_clk_freq = CONFIG_SIFIVE_UART_1_CLK_FREQ,
 	.baud_rate    = CONFIG_SIFIVE_UART_1_CURRENT_SPEED,
 	.rxcnt_irq    = CONFIG_UART_SIFIVE_PORT_1_RXCNT_IRQ,
 	.txcnt_irq    = CONFIG_UART_SIFIVE_PORT_1_TXCNT_IRQ,

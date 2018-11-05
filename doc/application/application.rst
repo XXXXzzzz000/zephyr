@@ -83,74 +83,94 @@ Follow these steps to create a new application directory. (Refer to
    Zephyr base directory.  Usually you'll want to create it somewhere under
    your user's home directory.
 
-   For example, in a Unix shell, navigate to a location where you want your
-   application to reside, then enter:
+   For example, in a Unix shell or Windows ``cmd.exe`` prompt, navigate to
+   where you want to create your application, then enter:
 
    .. code-block:: console
 
       mkdir app
 
+   .. warning::
+
+      Building Zephyr or creating an application in a directory with spaces
+      anywhere on the path is not supported. So the Windows path
+      :file:`C:\\Users\\YourName\\app` will work, but :file:`C:\\Users\\Your
+      Name\\app` will not.
+
 #. It's recommended to place all application source code in a subdirectory
    named :file:`src`.  This makes it easier to distinguish between project
    files and sources.
 
-   Continuing the Unix shell example from the previous step, enter:
+   Continuing the previous example, enter:
 
    .. code-block:: console
 
       cd app
       mkdir src
 
-#. Create an empty :file:`CMakeLists.txt` file in your application directory.
-
-#. Add boilerplate code that sets the minimum CMake version and pulls
-   in the Zephyr build system:
-
-   .. code-block:: cmake
-
-      cmake_minimum_required(VERSION 3.8.2)
-      include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
-      project(NONE)
-
-   .. note:: cmake_minimum_required is also invoked from
-             :file:`boilerplate.cmake`. The most recent of the two
-             versions will be enforced by CMake.
-
-
 #. Place your application source code in the :file:`src` sub-directory. For
    this example, we'll assume you created a file named :file:`src/main.c`.
 
-#. Add your source code files to the ``app`` target in your application
-   directory's :file:`CMakeLists.txt`. For example, to add :file:`src/main.c`,
-   add the following line to your :file:`CMakeLists.txt`:
+#. Create a file named :file:`CMakeLists.txt` in the ``app`` directory with the
+   following contents:
 
    .. code-block:: cmake
 
+      # Boilerplate code, which pulls in the Zephyr build system.
+      cmake_minimum_required(VERSION 3.8.2)
+      include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
+      project(my_zephyr_app)
+
+      # Add your source file to the "app" target. This must come after
+      # the boilerplate code, which defines the target.
       target_sources(app PRIVATE src/main.c)
 
-#. Configure features used by your application. Zephyr's configuration uses
-   the same Kconfig and Device Tree systems used by the Linux kernel, but with
-   its own configuration trees. Usually, you just create a file named
-   :file:`prj.conf` in your application directory, where you enable or disable
-   features provided by Zephyr's Kconfig configuration system. Optionally you
-   can also configure any Device Tree overlays needed by your application
-   (this is usually not necessary; see :ref:`application_dt` below for more
-   details). You can use existing samples to get started. For more information,
-   see :ref:`application_configuration` below.
+   The boilerplate code sets the minimum CMake version and pulls in the Zephyr
+   build system, which creates a CMake target named ``app``. Adding sources
+   to this target is how you include them in the build.
 
-Applications integrate with the Zephyr build system using the boilerplate code
-shown above in :file:`CMakeLists.txt`. The following important variables
-configure the Zephyr build system:
+   .. note:: ``cmake_minimum_required()`` is also invoked from
+             :file:`boilerplate.cmake`. The most recent of the two
+             versions will be enforced by CMake.
 
-* :makevar:`ZEPHYR_BASE`: Sets the path to the Zephyr base directory.  This is
-  usually an environment variable set by the :file:`zephyr-env.sh` script on
-  Linux/macOS or manually on Windows, as you learned when getting started
+#. Set any Kconfig values needed by your application. Zephyr uses the same
+   Kconfig system as the Linux kernel, but with its own database of
+   configuration options.
+
+   For example, create a file named :file:`prj.conf` in the :file:`app`
+   directory, and enable or disable Kconfig features as needed. You can use
+   existing :ref:`samples-and-demos` to get started with Kconfig variables you
+   are interested in.  See :ref:`application_kconfig` for more details, and
+   :ref:`configuration` for a complete list of available options.
+
+#. Optionally, you can also configure any Device Tree overlays needed by your
+   application. Zephyr uses the same Device Tree system as the Linux kernel,
+   but with its own definitions.
+
+   This is usually not necessary; see :ref:`application_dt` below for details.
+
+.. _important-build-vars:
+
+Important Build System Variables
+********************************
+
+You can control the Zephyr build system using many variables. This
+section describes the most important ones that every Zephyr developer
+should know about.
+
+* :makevar:`ZEPHYR_BASE`: Sets the path to the directory containing Zephyr,
+  which is needed by the build system's boilerplate file.  This is an
+  environment variable set by the :file:`zephyr-env.sh` script on Linux/macOS
+  or :file:`zephyr-env.cmd` on Windows, as you learned when getting started
   with Zephyr in :ref:`getting_started_run_sample`. You can also set
-  :makevar:`ZEPHYR_BASE`: explicitly on Linux and macOS if you want to.
+  :makevar:`ZEPHYR_BASE` explicitly, but then you won't get the other features
+  provided by those scripts.
 
 * :makevar:`BOARD`: Selects the board that the application's build will use for
   the default configuration. This can be defined in the environment, in your
   application's :file:`CMakeLists.txt` file, or in the ``cmake`` command line.
+  See :ref:`boards` for built-in boards, and :ref:`board_porting_guide` for
+  information on adding board support.
 
 * :makevar:`CONF_FILE`: Indicates the name of one or more configuration
   fragment files.  Multiple filenames can either be separated by a single space
@@ -387,23 +407,25 @@ again.
 .. _application_debugging:
 .. _custom_board_definition:
 
-Custom Board Definition
-***********************
+Custom Board and SOC Definitions
+********************************
 
 In cases where the board or platform you are developing for is not yet supported
-by Zephyr, you can add the board definition to your application and build for
-this board without having to add it to the Zephyr tree.
+by Zephyr, you can add the board and SOC definition to your application and
+build for this board or SOC without having to add them to the Zephyr tree.
 
-The structure needed to support out-of-tree board development
-is similar to how boards are maintained in the Zephyr tree.  By using
-this structure, it will be much easier to upstream your board work into
+The structure needed to support out-of-tree board and SOC development
+is similar to how boards and SOCs are maintained in the Zephyr tree. By using
+this structure, it will be much easier to upstream your platform related work into
 the Zephyr tree after your initial development is done.
 
-Add the custom board to your application using the following structure:
+Add the custom board to your application or a dedicated repository using the
+following structure:
 
 .. code-block:: console
 
    boards/
+   soc/
    CMakeLists.txt
    prj.conf
    README.rst
@@ -422,6 +444,11 @@ where the ``boards`` directory hosts the board you are building for:
    │           └── support
    └── src
 
+and the ``soc`` directory hosts any SOC code. You can also have boards that are
+supported by a SOC that is available in the Zephyr tree.
+
+Boards
+======
 
 Use the proper architecture folder name (e.g., ``x86``, ``arm``, etc.)
 under ``boards`` for ``my_custom_board``.  (See  :ref:`boards` for a
@@ -440,7 +467,7 @@ Zephyr board, and provide the following files::
     board.h
     CMakeLists.txt
     doc/
-    dts.fixup
+    dts_fixup.h
     Kconfig.board
     Kconfig.defconfig
     pinmux.c
@@ -459,6 +486,59 @@ This will use your custom board configuration and will generate the
 Zephyr binary into your application directory.
 
 You can also define the ``BOARD_ROOT`` variable in the application
+:file:`CMakeLists.txt` file.
+
+
+SOC Definitions
+===============
+
+Similar to board support, the structure is similar to how SOCs are maintained in
+the Zephyr tree, for example:
+
+.. code-block:: console
+
+        soc
+        └── arm
+            └── st_stm32
+                    ├── common
+                    └── stm32l0
+
+
+
+The paths to any Kconfig files inside the structure needs to prefixed with
+$(SOC_DIR) to make Kconfig aware of the location of the Kconfig files related to
+the custom SOC.
+
+In the ``soc`` directory you will need a top-level Kconfig file pointing to the
+custom SOC definitions:
+
+
+.. code-block:: console
+
+	choice
+		prompt "SoC/CPU/Configuration Selection"
+
+	source "$(SOC_DIR)/$(ARCH)/\*/Kconfig.soc"
+
+	endchoice
+
+	menu "Hardware Configuration"
+	osource "$(SOC_DIR)/$(ARCH)/\*/Kconfig"
+
+	endmenu
+
+Once the SOC structure is in place, you can build your application
+targeting this platform by specifying the location of your custom platform
+information with the ``-DSOC_ROOT`` parameter to the CMake
+build system::
+
+   cmake -DBOARD=<board name> -DSOC_ROOT=<path to soc> -DBOARD_ROOT=<path to boards> ..
+
+
+This will use your custom platform configurations and will generate the
+Zephyr binary into your application directory.
+
+You can also define the ``SOC_ROOT`` variable in the application
 :file:`CMakeLists.txt` file.
 
 Application Debugging
@@ -653,7 +733,7 @@ Create a Debugger Configuration
 
    - In the Main tab:
 
-     - Project: NONE@build
+     - Project: my_zephyr_app@build
      - C/C++ Application: :file:`zephyr/zephyr.elf`
 
    - In the Debugger tab:
@@ -793,8 +873,9 @@ Make sure to follow these steps in order.
 
    More details are available below in :ref:`application_dt`.
 
-#. If your application has its own kernel configuration options, add a
-   line setting the location of the Kconfig file that defines them.
+#. If your application has its own kernel configuration options,
+   create a :file:`Kconfig` file in the same directory as your
+   application's :file:`CMakeLists.txt`.
 
    An (unlikely) advanced use case would be if your application has its own
    unique configuration **options** that are set differently depending on the
@@ -802,13 +883,6 @@ Make sure to follow these steps in order.
 
    If you just want to set application specific **values** for existing Zephyr
    configuration options, refer to the :makevar:`CONF_FILE` description above.
-
-   For example, if you have a file named :file:`Kconfig` in the same directory
-   as your application's :file:`CMakeLists.txt`, add the following line:
-
-   .. code-block:: cmake
-
-      set(KCONFIG_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/Kconfig)
 
    Structure your :file:`Kconfig` file like this:
 
@@ -824,6 +898,11 @@ Make sure to follow these steps in order.
        See the :ref:`kconfig_extensions` section in the
        :ref:`board_porting_guide` for more information.
 
+   The :file:`Kconfig` file is automatically detected when placed in
+   the application directory, but it is also possible for it to be
+   found elsewhere if the CMake variable :makevar:`KCONFIG_ROOT` is
+   set with an absolute path.
+
 #. Now include the mandatory boilerplate that integrates the
    application with the Zephyr build system on a new line, **after any
    lines added from the steps above**:
@@ -831,7 +910,7 @@ Make sure to follow these steps in order.
    .. code-block:: cmake
 
       include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
-      project(NONE)
+      project(my_zephyr_app)
 
 #. Now add any application source files to the 'app' target
    library, each on their own line, like so:
@@ -847,7 +926,7 @@ Below is a simple example :file:`CMakeList.txt`:
    set(BOARD qemu_x86)
 
    include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
-   project(NONE)
+   project(my_zephyr_app)
 
    target_sources(app PRIVATE src/main.c)
 

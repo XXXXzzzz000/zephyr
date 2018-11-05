@@ -17,8 +17,8 @@
  * symbols" in the offsets.o module.
  */
 
-#ifndef _kernel_arch_func__h_
-#define _kernel_arch_func__h_
+#ifndef ZEPHYR_ARCH_NIOS2_INCLUDE_KERNEL_ARCH_FUNC_H_
+#define ZEPHYR_ARCH_NIOS2_INCLUDE_KERNEL_ARCH_FUNC_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,7 +46,7 @@ static inline void _IntLibInit(void)
 	/* No special initialization of the interrupt subsystem required */
 }
 
-#define _is_in_isr() (_kernel.nested != 0)
+#define _is_in_isr() (_kernel.nested != 0U)
 
 #ifdef CONFIG_IRQ_OFFLOAD
 void _irq_do_offload(void);
@@ -72,4 +72,4 @@ void _nios2_dcache_flush_no_writeback(void *start, u32_t len);
 }
 #endif
 
-#endif /* _kernel_arch_func__h_ */
+#endif /* ZEPHYR_ARCH_NIOS2_INCLUDE_KERNEL_ARCH_FUNC_H_ */

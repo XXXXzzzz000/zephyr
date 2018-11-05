@@ -6,6 +6,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define LOG_MODULE_NAME net_test
+#define NET_LOG_LEVEL CONFIG_NET_IPV6_LOG_LEVEL
+
 #include <zephyr/types.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -29,7 +32,7 @@
 #define NET_LOG_ENABLED 1
 #include "net_private.h"
 
-#if defined(CONFIG_NET_IPV6)
+#if defined(CONFIG_NET_IPV6_LOG_LEVEL_DBG)
 #define DBG(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #else
 #define DBG(fmt, ...)
@@ -355,6 +358,8 @@ static void send_query(struct net_if *iface)
 	net_ipv6_finalize(pkt, NET_IPV6_NEXTHDR_HBHO);
 
 	net_pkt_set_iface(pkt, iface);
+
+	net_pkt_set_ipv6_ext_len(pkt, ROUTER_ALERT_LEN);
 
 	net_pkt_write_be16(pkt, pkt->frags,
 			   NET_IPV6H_LEN + ROUTER_ALERT_LEN + 2,

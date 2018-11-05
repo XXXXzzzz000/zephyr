@@ -7,3 +7,7 @@ toolchain:
   - gnuarmemb
 supported:
   - netif:eth
+  - adc
+  - gpio
+  - spi
+  - watchdog

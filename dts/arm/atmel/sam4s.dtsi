@@ -6,6 +6,7 @@
 
 #include <arm/armv7-m.dtsi>
 #include <dt-bindings/i2c/i2c.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	cpus {
@@ -22,16 +23,22 @@
 	sram0: memory@20100000 {
 		device_type = "memory";
 		compatible = "mmio-sram";
-		reg = <0x20100000 0x20000>;
 	};
 
 	flash0: flash@400000 {
 		compatible = "soc-nv-flash";
 		label = "FLASH_0";
-		reg = <0x00400000 0x100000>;
 	};
 
 	soc {
+		wdog: watchdog@400E1450 {
+			compatible = "atmel,sam-watchdog";
+			reg = <0x400E1450 0xc>;
+			interrupts = <4 0>;
+			peripheral-id = <4>;
+			label = "WATCHDOG_0";
+			status = "disabled";
+		};
 		i2c0: i2c@40018000 {
 			compatible = "atmel,sam-i2c-twi";
 			clock-frequency = <I2C_BITRATE_STANDARD>;
@@ -94,6 +101,8 @@
 			interrupts = <11 1>;
 			peripheral-id = <11>;
 			label = "PORTA";
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		portb: gpio@400E1000 {
@@ -102,6 +111,8 @@
 			interrupts = <12 1>;
 			peripheral-id = <12>;
 			label = "PORTB";
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		portc: gpio@400E1200 {
@@ -110,6 +121,8 @@
 			interrupts = <13 1>;
 			peripheral-id = <13>;
 			label = "PORTC";
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 	};
 };

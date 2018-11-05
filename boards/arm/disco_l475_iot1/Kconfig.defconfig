@@ -94,6 +94,15 @@ config PWM_STM32_2
 
 endif # PWM
 
+choice LIS3MDL_TRIGGER_MODE
+	default LIS3MDL_TRIGGER_NONE
+endchoice
+
+choice HTS221_TRIGGER_MODE
+	default HTS221_TRIGGER_NONE
+endchoice
+
+
 if VL53L0X
 
 config VL53L0X_XSHUT_CONTROL_ENABLE
@@ -128,5 +137,15 @@ config BT_HCI_VS_EXT
 	default n
 
 endif #BT
+
+if WIFI
+
+config SPI
+	default y
+
+config WIFI_ESWIFI
+	default y
+
+endif #WIFI
 
 endif # BOARD_DISCO_L475_IOT1

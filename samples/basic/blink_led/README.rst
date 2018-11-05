@@ -22,8 +22,8 @@ Arduino 101 and Quark D2000 CRB
 You will need to connect the LED to ground and PWM0 via the shield.
 You may need a current limiting resistor. See your LED datasheet.
 
-Nucleo_F401RE, Nucleo_L476RG, and STM32F4_DISCOVERY
-===================================================
+Nucleo_F401RE, Nucleo_L476RG, STM32F4_DISCOVERY, Nucleo_F302R8
+==============================================================
 Connect PWM2(PA0) to LED
 
 Nucleo_F103RB
@@ -34,6 +34,10 @@ Hexiwear K64
 ============
 No special board setup is necessary because there is an on-board RGB LED
 connected to the K64 PWM.
+
+nRF52840_PCA10056
+=================
+No special board setup is necessary because there is an on-board LED connected.
 
 Building and Running
 ********************

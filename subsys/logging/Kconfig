@@ -183,6 +183,12 @@ config LOG_MAX_LEVEL
 	  - 3 INFO, maximal level set to LOG_LEVEL_INFO
 	  - 4 DEBUG, maximal level set to LOG_LEVEL_DBG
 
+config LOG_FUNCTION_NAME
+	bool "Prepend log message with function name"
+	default y
+	help
+	  Prepends log message with function name.
+
 config LOG_PRINTK
 	bool "Enable processing of printk messages."
 	help
@@ -256,12 +262,30 @@ config LOG_BUFFER_SIZE
 	help
 	  Number of bytes dedicated for the logger internal buffer.
 
+config LOG_STRDUP_MAX_STRING
+	int "Longest string that can be duplicated using log_strdup()"
+	default 46 if NETWORKING
+	default 32
+	help
+	  Longer strings are truncated.
+
+config LOG_STRDUP_BUF_COUNT
+	int "Number of buffers in the pool used by log_strdup()"
+	default 4
+	help
+	  When pool is empty log_strdup() returns warning string instead of the
+	  copy.
+
 config LOG_DOMAIN_ID
 	int "Domain ID"
 	default 0
 	range 0 7
 	help
 	  In multicore system each application/core must have unique domain ID.
+
+config LOG_CMDS
+	bool "Enable shell commands"
+	default y if SHELL
 
 config LOG_BACKEND_UART
 	bool "Enable UART backend"
@@ -270,18 +294,86 @@ config LOG_BACKEND_UART
 	help
 	  When enabled backend is using UART to output logs.
 
-config LOG_BACKEND_UART_SHOW_COLOR
-	bool "Enable colors in the UART backend"
-	depends on LOG_BACKEND_UART
+config LOG_BACKEND_RTT
+	bool "Enable Segger J-Link RTT backend"
+	depends on USE_SEGGER_RTT
 	default y
 	help
-	  When enabled UART backend prints errors in red and warning in yellow.
+	  When enabled, backend will use RTT for logging. This backend works on a per
+	  message basis. Only a whole message (terminated with a carriage return: '\r')
+	  is transferred to up-buffer at once depending on available space and
+	  selected mode.
+	  In panic mode backend always blocks and waits until there is space
+	  in up-buffer for a message and message is transferred to host.
 
-config LOG_BACKEND_UART_FORMAT_TIMESTAMP
-	bool "Enable timestamp formatting in the UART backend"
-	depends on LOG_BACKEND_UART
+if LOG_BACKEND_RTT
+
+choice
+	prompt "Logger behavior"
+	default LOG_BACKEND_RTT_MODE_BLOCK
+
+config LOG_BACKEND_RTT_MODE_DROP
+	bool "Drop messages that do not fit in up-buffer."
+	help
+	  If there is not enough space in up-buffer for a message, drop it.
+	  Number of dropped messages will be logged.
+	  Increase up-buffer size helps to reduce dropping of messages.
+
+config LOG_BACKEND_RTT_MODE_BLOCK
+	bool "Block until message is transferred to host."
+	help
+	  Waits until there is enough space in the up-buffer for a message
+	  and until the message is completely transferred to the host.
+
+endchoice
+
+config LOG_BACKEND_RTT_MESSAGE_SIZE
+	int "Size of internal buffer for storing messages."
+	range 32 256
+	default 128
+	help
+	  This option defines maximum message size transferable to up-buffer.
+
+config LOG_BACKEND_RTT_BUFFER
+	int "Buffer number used for logger output."
+	range 0 SEGGER_RTT_MAX_NUM_UP_BUFFERS
+	default 0
+	help
+	  Select index of up-buffer used for logger output, by default it uses
+	  terminal up-buffer and its settings.
+
+if LOG_BACKEND_RTT_BUFFER > 0
+
+config LOG_BACKEND_RTT_BUFFER_SIZE
+	int "Size of reserved up-buffer for logger output."
+	default 1024
+	help
+	  Specify reserved size of up-buffer used for logger output.
+
+endif # LOG_BACKEND_RTT_BUFFER
+endif # LOG_BACKEND_RTT
+
+
+config LOG_BACKEND_NATIVE_POSIX
+	bool "Enable native backend"
+	depends on ARCH_POSIX
+	default n
+	help
+	  Enable backend in native_posix
+
+config LOG_BACKEND_SHOW_COLOR
+	bool "Enable colors in the backend"
+	depends on LOG_BACKEND_UART || LOG_BACKEND_NATIVE_POSIX || LOG_BACKEND_RTT
+	default y
+	help
+	  When enabled selected backend prints errors in red and warning in yellow.
+
+config LOG_BACKEND_FORMAT_TIMESTAMP
+	bool "Enable timestamp formatting in the backend"
+	depends on LOG_BACKEND_UART || LOG_BACKEND_NATIVE_POSIX || LOG_BACKEND_RTT
 	default y
 	help
 	  When enabled timestamp is formatted to hh:mm:ss:ms,us.
+
 endif
 endmenu

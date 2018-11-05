@@ -8,10 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_IPV4)
-#define SYS_LOG_DOMAIN "net/ipv4"
-#define NET_LOG_ENABLED 1
-#endif
+#define LOG_MODULE_NAME net_ipv4
+#define NET_LOG_LEVEL CONFIG_NET_IPV4_LOG_LEVEL
 
 #include <errno.h>
 #include <net/net_core.h>
@@ -124,15 +122,19 @@ enum net_verdict net_ipv4_process_pkt(struct net_pkt *pkt)
 		goto drop;
 	}
 
+	if (net_ipv4_is_addr_bcast(net_pkt_iface(pkt), &hdr->src)) {
+		goto drop;
+	}
+
 	NET_DBG("IPv4 packet received from %s to %s",
-		net_sprint_ipv4_addr(&hdr->src),
-		net_sprint_ipv4_addr(&hdr->dst));
+		log_strdup(net_sprint_ipv4_addr(&hdr->src)),
+		log_strdup(net_sprint_ipv4_addr(&hdr->dst)));
 
 	net_pkt_set_ip_hdr_len(pkt, sizeof(struct net_ipv4_hdr));
 	net_pkt_set_ipv4_ttl(pkt, NET_IPV4_HDR(pkt)->ttl);
 
-	if (!net_is_my_ipv4_addr(&hdr->dst) &&
-	    !net_is_ipv4_addr_mcast(&hdr->dst)) {
+	if (!net_ipv4_is_my_addr(&hdr->dst) &&
+	    !net_ipv4_is_addr_mcast(&hdr->dst)) {
 		if (IS_ENABLED(CONFIG_NET_DHCPV4) &&
 		    hdr->proto == IPPROTO_UDP &&
 		    net_ipv4_addr_cmp(&hdr->dst,
@@ -148,11 +150,18 @@ enum net_verdict net_ipv4_process_pkt(struct net_pkt *pkt)
 		goto drop;
 	}
 
+	net_pkt_set_transport_proto(pkt, hdr->proto);
+
 	switch (hdr->proto) {
 	case IPPROTO_ICMP:
 		verdict = net_icmpv4_input(pkt);
 		break;
 	case IPPROTO_TCP:
+		if (net_ipv4_is_addr_bcast(net_pkt_iface(pkt), &hdr->dst)) {
+			goto drop;
+		}
+
+		/* Fall through */
 	case IPPROTO_UDP:
 		verdict = net_conn_input(hdr->proto, pkt);
 		break;

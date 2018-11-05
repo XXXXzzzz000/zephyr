@@ -7,8 +7,8 @@
 
 /* This file is only meant to be included by kernel_structs.h */
 
-#ifndef _kernel_arch_func__h_
-#define _kernel_arch_func__h_
+#ifndef ZEPHYR_ARCH_POSIX_INCLUDE_KERNEL_ARCH_FUNC_H_
+#define ZEPHYR_ARCH_POSIX_INCLUDE_KERNEL_ARCH_FUNC_H_
 
 #include "kernel.h"
 #include <toolchain/common.h>
@@ -63,8 +63,8 @@ static inline void _IntLibInit(void)
 }
 #endif
 
-#define _is_in_isr() (_kernel.nested != 0)
+#define _is_in_isr() (_kernel.nested != 0U)
 
 #endif /* _ASMLANGUAGE */
 
-#endif /* _kernel_arch_func__h_ */
+#endif /* ZEPHYR_ARCH_POSIX_INCLUDE_KERNEL_ARCH_FUNC_H_ */

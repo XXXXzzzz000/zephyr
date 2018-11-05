@@ -13,8 +13,8 @@
 
 /* Data buffer API - used for all data to/from net */
 
-#ifndef __NET_PKT_H__
-#define __NET_PKT_H__
+#ifndef ZEPHYR_INCLUDE_NET_NET_PKT_H_
+#define ZEPHYR_INCLUDE_NET_NET_PKT_H_
 
 #include <zephyr/types.h>
 #include <stdbool.h>
@@ -99,6 +99,12 @@ struct net_pkt {
 	u16_t appdatalen;
 	u8_t ll_reserve;	/* link layer header length */
 	u8_t ip_hdr_len;	/* pre-filled in order to avoid func call */
+	u8_t transport_proto;	/* Transport protol of data, like
+				 * IPPROTO_TCP or IPPROTO_UDP. This value is
+				 * saved so that we do not need to traverse
+				 * through extension headers (this is mainly
+				 * issue in IPv6).
+				 */
 
 #if defined(CONFIG_NET_TCP)
 	sys_snode_t sent_list;
@@ -183,7 +189,7 @@ static inline struct k_work *net_pkt_work(struct net_pkt *pkt)
 }
 
 /* The interface real ll address */
-static inline struct net_linkaddr *net_pkt_ll_if(struct net_pkt *pkt)
+static inline struct net_linkaddr *net_pkt_lladdr_if(struct net_pkt *pkt)
 {
 	return net_if_get_link_addr(pkt->iface);
 }
@@ -261,6 +267,16 @@ static inline u8_t net_pkt_ip_hdr_len(struct net_pkt *pkt)
 static inline void net_pkt_set_ip_hdr_len(struct net_pkt *pkt, u8_t len)
 {
 	pkt->ip_hdr_len = len;
+}
+
+static inline u8_t net_pkt_transport_proto(struct net_pkt *pkt)
+{
+	return pkt->transport_proto;
+}
+
+static inline void net_pkt_set_transport_proto(struct net_pkt *pkt, u8_t proto)
+{
+	pkt->transport_proto = proto;
 }
 
 static inline u8_t *net_pkt_next_hdr(struct net_pkt *pkt)
@@ -594,29 +610,29 @@ static inline u8_t *net_pkt_ll(struct net_pkt *pkt)
 	return net_pkt_ip_data(pkt) - net_pkt_ll_reserve(pkt);
 }
 
-static inline struct net_linkaddr *net_pkt_ll_src(struct net_pkt *pkt)
+static inline struct net_linkaddr *net_pkt_lladdr_src(struct net_pkt *pkt)
 {
 	return &pkt->lladdr_src;
 }
 
-static inline struct net_linkaddr *net_pkt_ll_dst(struct net_pkt *pkt)
+static inline struct net_linkaddr *net_pkt_lladdr_dst(struct net_pkt *pkt)
 {
 	return &pkt->lladdr_dst;
+}
+
+static inline void net_pkt_lladdr_swap(struct net_pkt *pkt)
+{
+	u8_t *addr = net_pkt_lladdr_src(pkt)->addr;
+
+	net_pkt_lladdr_src(pkt)->addr = net_pkt_lladdr_dst(pkt)->addr;
+	net_pkt_lladdr_dst(pkt)->addr = addr;
 }
 
 static inline void net_pkt_ll_clear(struct net_pkt *pkt)
 {
 	memset(net_pkt_ll(pkt), 0, net_pkt_ll_reserve(pkt));
-	net_pkt_ll_src(pkt)->addr = NULL;
-	net_pkt_ll_src(pkt)->len = 0;
-}
-
-static inline void net_pkt_ll_swap(struct net_pkt *pkt)
-{
-	u8_t *addr = net_pkt_ll_src(pkt)->addr;
-
-	net_pkt_ll_src(pkt)->addr = net_pkt_ll_dst(pkt)->addr;
-	net_pkt_ll_dst(pkt)->addr = addr;
+	net_pkt_lladdr_src(pkt)->addr = NULL;
+	net_pkt_lladdr_src(pkt)->len = 0;
 }
 
 #if defined(CONFIG_IEEE802154) || defined(CONFIG_IEEE802154_RAW_MODE)
@@ -704,7 +720,7 @@ static inline void net_pkt_set_src_ipv6_addr(struct net_pkt *pkt)
 	NET_BUF_POOL_DEFINE(name, count, CONFIG_NET_BUF_DATA_SIZE,	\
 			    CONFIG_NET_BUF_USER_DATA_SIZE, NULL)
 
-#if defined(CONFIG_NET_DEBUG_NET_PKT)
+#if CONFIG_NET_PKT_LOG_LEVEL >= LOG_LEVEL_DBG
 
 /* Debug versions of the net_pkt functions that are used when tracking
  * buffer usage.
@@ -821,7 +837,7 @@ void net_pkt_frag_insert_debug(struct net_pkt *pkt, struct net_buf *frag,
  */
 void net_pkt_print_frags(struct net_pkt *pkt);
 
-#else /* CONFIG_NET_DEBUG_NET_PKT */
+#else /* CONFIG_NET_PKT_LOG_LEVEL >= LOG_LEVEL_DBG */
 
 #define net_pkt_print_frags(...)
 
@@ -1052,7 +1068,7 @@ void net_pkt_frag_add(struct net_pkt *pkt, struct net_buf *frag);
  */
 void net_pkt_frag_insert(struct net_pkt *pkt, struct net_buf *frag);
 
-#endif /* CONFIG_NET_DEBUG_NET_PKT */
+#endif /* CONFIG_NET_PKT_LOG_LEVEL >= LOG_LEVEL_DBG */
 
 /**
  * @brief Copy a packet fragment list while reserving some extra space
@@ -1196,7 +1212,7 @@ static inline bool net_pkt_append_all(struct net_pkt *pkt, u16_t len,
  *
  * @param pkt Network packet.
  * @param len Total length of input data
- * @param data Byte to initialise fragment with
+ * @param data Byte to initialize fragment with
  * @param timeout Affects the action taken should the net buf pool be empty.
  *        If K_NO_WAIT, then return immediately. If K_FOREVER, then
  *        wait as long as necessary. Otherwise, wait up to the specified
@@ -1850,7 +1866,7 @@ int net_pkt_get_dst_addr(struct net_pkt *pkt,
 			 struct sockaddr *addr,
 			 socklen_t addrlen);
 
-#if defined(CONFIG_NET_DEBUG_NET_PKT)
+#if CONFIG_NET_PKT_LOG_LEVEL >= LOG_LEVEL_DBG
 /**
  * @brief Debug helper to print out the buffer allocations
  */
@@ -1872,7 +1888,7 @@ const char *net_pkt_pool2str(struct net_buf_pool *pool);
 
 #else
 #define net_pkt_print(...)
-#endif /* CONFIG_NET_DEBUG_NET_PKT */
+#endif /* CONFIG_NET_PKT_LOG_LEVEL >= LOG_LEVEL_DBG */
 
 /**
  * @}
@@ -1882,4 +1898,4 @@ const char *net_pkt_pool2str(struct net_buf_pool *pool);
 }
 #endif
 
-#endif /* __NET_PKT_H__ */
+#endif /* ZEPHYR_INCLUDE_NET_NET_PKT_H_ */

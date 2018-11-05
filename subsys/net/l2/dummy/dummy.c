@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define LOG_MODULE_NAME net_l2_dummy
+#define NET_LOG_LEVEL LOG_LEVEL_NONE
+
 #include <net/net_core.h>
 #include <net/net_l2.h>
 #include <net/net_if.h>
@@ -12,12 +15,12 @@
 static inline enum net_verdict dummy_recv(struct net_if *iface,
 					  struct net_pkt *pkt)
 {
-	net_pkt_ll_src(pkt)->addr = NULL;
-	net_pkt_ll_src(pkt)->len = 0;
-	net_pkt_ll_src(pkt)->type = NET_LINK_DUMMY;
-	net_pkt_ll_dst(pkt)->addr = NULL;
-	net_pkt_ll_dst(pkt)->len = 0;
-	net_pkt_ll_dst(pkt)->type = NET_LINK_DUMMY;
+	net_pkt_lladdr_src(pkt)->addr = NULL;
+	net_pkt_lladdr_src(pkt)->len = 0;
+	net_pkt_lladdr_src(pkt)->type = NET_LINK_DUMMY;
+	net_pkt_lladdr_dst(pkt)->addr = NULL;
+	net_pkt_lladdr_dst(pkt)->len = 0;
+	net_pkt_lladdr_dst(pkt)->type = NET_LINK_DUMMY;
 
 	return NET_CONTINUE;
 }

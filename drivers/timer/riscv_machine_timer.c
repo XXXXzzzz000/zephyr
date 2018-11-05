@@ -8,7 +8,8 @@
 #include <arch/cpu.h>
 #include <device.h>
 #include <system_timer.h>
-#include <board.h>
+
+#include "legacy_api.h"
 
 typedef struct {
 	u32_t val_low;
@@ -51,9 +52,9 @@ static ALWAYS_INLINE void riscv_machine_rearm_timer(void)
 
 	/*
 	 * Rearm timer to generate an interrupt after
-	 * sys_clock_hw_cycles_per_tick
+	 * sys_clock_hw_cycles_per_tick()
 	 */
-	rtc += sys_clock_hw_cycles_per_tick;
+	rtc += sys_clock_hw_cycles_per_tick();
 	mtimecmp->val_low = (u32_t)(rtc & 0xffffffff);
 	mtimecmp->val_high = (u32_t)((rtc >> 32) & 0xffffffff);
 
@@ -69,7 +70,7 @@ static void riscv_machine_timer_irq_handler(void *unused)
 	read_timer_start_of_tick_handler();
 #endif
 
-	_sys_clock_tick_announce();
+	z_clock_announce(1);
 
 	/* Rearm timer */
 	riscv_machine_rearm_timer();
@@ -84,7 +85,7 @@ static void riscv_machine_timer_irq_handler(void *unused)
 #error "Tickless idle not yet implemented for riscv-machine timer"
 #endif
 
-int _sys_clock_driver_init(struct device *device)
+int z_clock_driver_init(struct device *device)
 {
 	ARG_UNUSED(device);
 

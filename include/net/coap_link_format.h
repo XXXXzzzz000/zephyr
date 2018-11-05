@@ -10,17 +10,18 @@
  * @brief CoAP implementation for Zephyr.
  */
 
-#ifndef __LINK_FORMAT_H__
-#define __LINK_FORMAT_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef ZEPHYR_INCLUDE_NET_COAP_LINK_FORMAT_H_
+#define ZEPHYR_INCLUDE_NET_COAP_LINK_FORMAT_H_
 
 /**
  * @addtogroup coap COAP Library
  * @{
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * This resource should be added before all other resources that should be
  * included in the responses of the .well-known/core resource.
@@ -43,12 +44,12 @@ struct coap_core_metadata {
 	void *user_data;
 };
 
-/**
- * @}
- */
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __LINK_FORMAT_H__ */
+/**
+ * @}
+ */
+
+#endif /* ZEPHYR_INCLUDE_NET_COAP_LINK_FORMAT_H_ */

@@ -18,6 +18,7 @@
 #include <bluetooth/mesh.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_MODEL)
+#define LOG_MODULE_NAME bt_mesh_health_srv
 #include "common/log.h"
 
 #include "mesh.h"
@@ -390,7 +391,7 @@ int bt_mesh_health_srv_init(struct bt_mesh_model *model, bool primary)
 		return -EINVAL;
 	}
 
-	model->pub->update = health_pub_update,
+	model->pub->update = health_pub_update;
 
 	k_delayed_work_init(&srv->attn_timer, attention_off);
 

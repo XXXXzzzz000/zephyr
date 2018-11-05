@@ -23,7 +23,7 @@
 
 #if defined(CONFIG_SOC_SERIES_NRF51X)
 #define RADIO_PDU_LEN_MAX (BIT(5) - 1)
-#elif defined(CONFIG_SOC_SERIES_NRF52X)
+#elif defined(CONFIG_SOC_COMPATIBLE_NRF52X)
 #define RADIO_PDU_LEN_MAX (BIT(8) - 1)
 #else
 #error "Platform not defined."
@@ -155,7 +155,7 @@ void radio_pkt_configure(u8_t bits_len, u8_t max_len, u8_t flags)
 	if (!IS_ENABLED(CONFIG_BT_CTLR_DATA_LENGTH_CLEAR) && dc) {
 		bits_len = 5;
 	}
-#elif defined(CONFIG_SOC_SERIES_NRF52X)
+#elif defined(CONFIG_SOC_COMPATIBLE_NRF52X)
 	extra = 0;
 
 	phy = (flags >> 1) & 0x07; /* phy */
@@ -359,13 +359,12 @@ static void sw_switch(u8_t dir, u8_t phy_curr, u8_t flags_curr, u8_t phy_next,
 	u8_t cc = SW_SWITCH_TIMER_EVTS_COMP(sw_tifs_toggle);
 	u32_t delay;
 
-	HAL_SW_SWITCH_GROUP_TASK_ENABLE_PPI_REGISTER_EVT =
-	    HAL_SW_SWITCH_GROUP_TASK_ENABLE_PPI_EVT;
-	HAL_SW_SWITCH_GROUP_TASK_ENABLE_PPI_REGISTER_TASK =
-	    HAL_SW_SWITCH_GROUP_TASK_ENABLE_PPI_TASK(sw_tifs_toggle);
+	nrf_ppi_channel_endpoint_setup(HAL_SW_SWITCH_GROUP_TASK_ENABLE_PPI,
+		HAL_SW_SWITCH_GROUP_TASK_ENABLE_PPI_EVT,
+		HAL_SW_SWITCH_GROUP_TASK_ENABLE_PPI_TASK(sw_tifs_toggle));
 
-	HAL_SW_SWITCH_RADIO_ENABLE_PPI_REGISTER_EVT(ppi) =
-		HAL_SW_SWITCH_RADIO_ENABLE_PPI_EVT(cc);
+	nrf_ppi_event_endpoint_setup(ppi,
+		HAL_SW_SWITCH_RADIO_ENABLE_PPI_EVT(cc));
 
 	if (dir) {
 		/* TX */
@@ -703,30 +702,27 @@ u32_t radio_tmr_start(u8_t trx, u32_t ticks_start, u32_t remainder)
 	nrf_timer_task_trigger(SW_SWITCH_TIMER, NRF_TIMER_TASK_START);
 #endif /* !CONFIG_BT_CTLR_SW_SWITCH_SINGLE_TIMER */
 
-	HAL_SW_SWITCH_TIMER_CLEAR_PPI_REGISTER_EVT =
-		HAL_SW_SWITCH_TIMER_CLEAR_PPI_EVT;
-	HAL_SW_SWITCH_TIMER_CLEAR_PPI_REGISTER_TASK =
-		HAL_SW_SWITCH_TIMER_CLEAR_PPI_TASK;
+	nrf_ppi_channel_endpoint_setup(HAL_SW_SWITCH_TIMER_CLEAR_PPI,
+		HAL_SW_SWITCH_TIMER_CLEAR_PPI_EVT,
+		HAL_SW_SWITCH_TIMER_CLEAR_PPI_TASK);
 
 #if !defined(CONFIG_BT_CTLR_PHY_CODED) || !defined(CONFIG_SOC_NRF52840)
 	/* NOTE: PPI channel group disable is setup explicitly in sw_switch
 	 *       function when Coded PHY on nRF52840 is supported.
 	 */
-	HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_REGISTER_EVT(
-		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI(0)) =
-		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_EVT(
-			SW_SWITCH_TIMER_EVTS_COMP(0));
-	HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_REGISTER_TASK(
-		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI(0)) =
-		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_TASK(0);
 
-	HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_REGISTER_EVT(
-			HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI(1)) =
+	nrf_ppi_channel_endpoint_setup(
+		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI(0),
 		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_EVT(
-			SW_SWITCH_TIMER_EVTS_COMP(1));
-	HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_REGISTER_TASK(
-		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI(1)) =
-		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_TASK(1);
+			SW_SWITCH_TIMER_EVTS_COMP(0)),
+		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_TASK(0));
+
+	nrf_ppi_channel_endpoint_setup(
+		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI(1),
+		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_EVT(
+			SW_SWITCH_TIMER_EVTS_COMP(1)),
+		HAL_SW_SWITCH_GROUP_TASK_DISABLE_PPI_TASK(1));
+
 #endif /* !CONFIG_BT_CTLR_PHY_CODED || !CONFIG_SOC_NRF52840 */
 
 	NRF_PPI->CHG[SW_SWITCH_TIMER_TASK_GROUP(0)] =
@@ -985,7 +981,7 @@ void *radio_ccm_rx_pkt_set(struct ccm *ccm, u8_t phy, void *pkt)
 	mode = (CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos) &
 	       CCM_MODE_MODE_Msk;
 
-#if defined(CONFIG_SOC_SERIES_NRF52X)
+#if defined(CONFIG_SOC_COMPATIBLE_NRF52X)
 	/* Enable CCM support for 8-bit length field PDUs. */
 	mode |= (CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos) &
 		CCM_MODE_LENGTH_Msk;
@@ -1055,7 +1051,7 @@ void *radio_ccm_tx_pkt_set(struct ccm *ccm, void *pkt)
 	NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Enabled;
 	mode = (CCM_MODE_MODE_Encryption << CCM_MODE_MODE_Pos) &
 	       CCM_MODE_MODE_Msk;
-#if defined(CONFIG_SOC_SERIES_NRF52X)
+#if defined(CONFIG_SOC_COMPATIBLE_NRF52X)
 	/* Enable CCM support for 8-bit length field PDUs. */
 	mode |= (CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos) &
 		CCM_MODE_LENGTH_Msk;

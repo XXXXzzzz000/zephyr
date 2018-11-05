@@ -13,6 +13,7 @@
 #include "util/mem.h"
 #include "hal/ecb.h"
 
+#define LOG_MODULE_NAME bt_ctlr_nrf5_ecb
 #include "common/log.h"
 #include "hal/debug.h"
 
@@ -35,7 +36,7 @@ static void do_ecb(struct ecb_param *ecb)
 		while ((NRF_ECB->EVENTS_ENDECB == 0) &&
 		       (NRF_ECB->EVENTS_ERRORECB == 0) &&
 		       (NRF_ECB->ECBDATAPTR != 0)) {
-#if defined(CONFIG_SOC_SERIES_NWTSIM_NRFXX)
+#if defined(CONFIG_SOC_SERIES_BSIM_NRFXX)
 			__WFE();
 #else
 			/*__WFE();*/

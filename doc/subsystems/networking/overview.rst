@@ -65,9 +65,12 @@ can be disabled if not needed.
 
 * **CoAP** Constrained Application Protocol (RFC 7252) is supported.
   Both :ref:`coap-client-sample` and :ref:`coap-server-sample` sample
-  applications are implemented. A :ref:`coaps-client-sample` and
-  :ref:`coaps-server-sample` using DTLS (Datagram Transport Layer Security)
-  (RFC 6347) are also implemented.
+  applications are implemented.
+
+* **CoAP over Sockets** Constrained Application Protocol (RFC 7252) is supported
+  over socket based applications or higher layer protocols.
+  Both :ref:`coap-client-sock-sample` and :ref:`coap-server-sock-sample`
+  sample applications are implemented.
 
 * **LWM2M** OMA Lightweight Machine-to-Machine Protocol (V1.0 Feb 2017) is
   supported via the "Register Device" API (Register, De-Register and Update)

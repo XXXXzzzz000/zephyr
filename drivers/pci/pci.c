@@ -75,7 +75,7 @@
 #include <toolchain.h>
 #include <linker/sections.h>
 
-#include <board.h>
+#include <soc.h>
 
 #include <pci/pci_mgr.h>
 #include <pci/pci.h>
@@ -458,7 +458,7 @@ void pci_enable_bus_master(struct pci_dev_info *dev_info)
 
 void pci_show(struct pci_dev_info *dev_info)
 {
-	printk("%u:%u %X:%X class: 0x%X, %u, %u, %s,"
+	printk("%u:%u %X:%X class: 0x%X, %u, %u, %s, "
 		"addrs: 0x%X-0x%X, IRQ %d\n",
 		dev_info->bus,
 		dev_info->dev,

@@ -7,12 +7,14 @@
 #include <errno.h>
 #include <device.h>
 #include <i2c.h>
-#include <board.h>
+#include <soc.h>
 
 #include "qm_ss_i2c.h"
 #include "qm_ss_isr.h"
 #include "ss_clk.h"
 
+#include <logging/log.h>
+LOG_MODULE_REGISTER(i2c_qmsi_ss);
 #include "i2c-priv.h"
 
 /* Convenient macros to get the controller instance and the driver data. */

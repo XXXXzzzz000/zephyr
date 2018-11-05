@@ -4,21 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_L2_IEEE802154)
-#define SYS_LOG_DOMAIN "net/ieee802154"
-#define NET_LOG_ENABLED 1
+#define LOG_MODULE_NAME net_ieee802154_frame
+#define NET_LOG_LEVEL CONFIG_NET_L2_IEEE802154_LOG_LEVEL
 
 #define dbg_print_fs(fs)						\
-	NET_DBG("fs: %u/%u/%u/%u/%u/%u/%u/%u/%u/%u/%u - %u",		\
+	NET_DBG("fs(1): %u/%u/%u/%u/%u/%u",				\
 		fs->fc.frame_type, fs->fc.security_enabled,		\
 		fs->fc.frame_pending, fs->fc.ar, fs->fc.pan_id_comp,	\
-		fs->fc.reserved, fs->fc.seq_num_suppr, fs->fc.ie_list,	\
+		fs->fc.reserved);					\
+	NET_DBG("fs(2): %u/%u/%u/%u/%u - %u",				\
+		fs->fc.seq_num_suppr, fs->fc.ie_list,			\
 		fs->fc.dst_addr_mode, fs->fc.frame_version,		\
-		fs->fc.src_addr_mode,					\
-		fs->sequence)
-#else
-#define dbg_print_fs(...)
-#endif /* CONFIG_NET_DEBUG_L2_IEEE802154 */
+		fs->fc.src_addr_mode, fs->sequence)
 
 #include <net/net_core.h>
 #include <net/net_if.h>
@@ -424,8 +421,8 @@ u16_t ieee802154_compute_header_size(struct net_if *iface,
 
 	/** if dst is NULL, we'll consider it as a brodcast header */
 	if (!dst ||
-	    net_is_ipv6_addr_mcast(dst) ||
-	    net_is_ipv6_addr_unspecified(dst)) {
+	    net_ipv6_is_addr_mcast(dst) ||
+	    net_ipv6_is_addr_unspecified(dst)) {
 		NET_DBG("Broadcast destination");
 		/* 4 dst pan/addr + 8 src addr */
 		hdr_len += IEEE802154_PAN_ID_LENGTH +
@@ -925,7 +922,7 @@ bool ieee802154_decipher_data_frame(struct net_if *iface, struct net_pkt *pkt,
 	if (!ieee802154_decrypt_auth(&ctx->sec_ctx, net_pkt_ll(pkt),
 				     net_pkt_ll_reserve(pkt),
 				     net_pkt_get_len(pkt),
-				     net_pkt_ll_src(pkt)->addr,
+				     net_pkt_lladdr_src(pkt)->addr,
 				     sys_le32_to_cpu(
 					mpdu->mhr.aux_sec->frame_counter))) {
 		NET_ERR("Could not decipher the frame");

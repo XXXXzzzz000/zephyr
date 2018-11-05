@@ -17,7 +17,7 @@
 
 #include <pci/pci_mgr.h>
 #include <string.h>
-#include <board.h>
+#include <soc.h>
 
 #if (PCI_CTRL_ADDR_REG == 0)
 #error "PCI_CTRL_ADDR_REG cannot be zero"
@@ -385,7 +385,7 @@ void pci_header_get(u32_t controller,
 
 	/* clear out the header */
 
-	memset(pci_dev_header, 0, sizeof(*pci_dev_header));
+	(void)memset(pci_dev_header, 0, sizeof(*pci_dev_header));
 
 	/* fill in the PCI header from the device */
 

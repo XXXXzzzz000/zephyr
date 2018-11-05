@@ -9,8 +9,8 @@
  * @brief Public API for network interface
  */
 
-#ifndef __NET_IF_H__
-#define __NET_IF_H__
+#ifndef ZEPHYR_INCLUDE_NET_NET_IF_H_
+#define ZEPHYR_INCLUDE_NET_NET_IF_H_
 
 /**
  * @brief Network Interface abstraction layer
@@ -28,6 +28,7 @@
 #include <net/net_ip.h>
 #include <net/net_l2.h>
 #include <net/net_stats.h>
+#include <net/net_timeout.h>
 
 #if defined(CONFIG_NET_DHCPV4)
 #include <net/dhcpv4.h>
@@ -50,14 +51,7 @@ struct net_if_addr {
 	struct net_addr address;
 
 #if defined(CONFIG_NET_IPV6)
-	/** Used for track timers */
-	sys_snode_t node;
-
-	/** Address lifetime timer start time */
-	s64_t lifetime_timer_start;
-
-	/** lifetime timer timeout */
-	u32_t lifetime_timer_timeout;
+	struct net_timeout lifetime;
 #endif
 
 #if defined(CONFIG_NET_IPV6_DAD)
@@ -110,7 +104,7 @@ struct net_if_mcast_addr {
  */
 struct net_if_ipv6_prefix {
 	/** Prefix lifetime */
-	struct k_delayed_work lifetime;
+	struct net_timeout lifetime;
 
 	/** IPv6 prefix */
 	struct in6_addr prefix;
@@ -551,6 +545,13 @@ static inline struct net_offload *net_if_offload(struct net_if *iface)
 {
 	return iface->if_dev->offload;
 }
+#else
+static inline bool net_if_is_ip_offloaded(struct net_if *iface)
+{
+	ARG_UNUSED(iface);
+
+	return false;
+}
 #endif
 
 /**
@@ -944,6 +945,17 @@ static inline void net_if_ipv6_maddr_leave(struct net_if_mcast_addr *addr)
 
 	addr->is_joined = false;
 }
+
+/**
+ * @brief Return prefix that corresponds to this IPv6 address.
+ *
+ * @param iface Network interface
+ * @param addr IPv6 address
+ *
+ * @return Pointer to prefix, NULL if not found.
+ */
+struct net_if_ipv6_prefix *net_if_ipv6_prefix_get(struct net_if *iface,
+						  struct in6_addr *addr);
 
 /**
  * @brief Check if this IPv6 prefix belongs to this interface
@@ -1416,7 +1428,18 @@ struct net_if_router *net_if_ipv4_router_add(struct net_if *iface,
  * @return True if address is part of local subnet, false otherwise.
  */
 bool net_if_ipv4_addr_mask_cmp(struct net_if *iface,
-			       struct in_addr *addr);
+			       const struct in_addr *addr);
+
+/**
+ * @brief Check if the given IPv4 address is a broadcast address.
+ *
+ * @param iface Interface to use. Must be a valid pointer to an interface.
+ * @param addr IPv4 address, this should be in network byte order
+ *
+ * @return True if address is a broadcast address, false otherwise.
+ */
+bool net_if_ipv4_is_addr_bcast(struct net_if *iface,
+			       const struct in_addr *addr);
 
 /**
  * @brief Get a network interface that should be used when sending
@@ -1462,7 +1485,7 @@ struct in_addr *net_if_ipv4_get_ll(struct net_if *iface,
  * @param netmask IPv4 netmask
  */
 static inline void net_if_ipv4_set_netmask(struct net_if *iface,
-					   struct in_addr *netmask)
+					   const struct in_addr *netmask)
 {
 	if (net_if_config_ipv4_get(iface, NULL) < 0) {
 		return;
@@ -1852,4 +1875,4 @@ struct net_if_api {
  * @}
  */
 
-#endif /* __NET_IF_H__ */
+#endif /* ZEPHYR_INCLUDE_NET_NET_IF_H_ */

@@ -8,10 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_ICMPV6)
-#define SYS_LOG_DOMAIN "net/icmpv6"
-#define NET_LOG_ENABLED 1
-#endif
+#define LOG_MODULE_NAME net_icmpv6
+#define NET_LOG_LEVEL CONFIG_NET_ICMPV6_LOG_LEVEL
 
 #include <errno.h>
 #include <misc/slist.h>
@@ -258,7 +256,7 @@ int net_icmpv6_set_na_hdr(struct net_pkt *pkt, struct net_icmpv6_na_hdr *hdr)
 	struct net_buf *frag;
 	u16_t pos;
 
-	memset(hdr->reserved, 0, sizeof(hdr->reserved));
+	(void)memset(hdr->reserved, 0, sizeof(hdr->reserved));
 
 	frag = net_pkt_write(pkt, pkt->frags,
 			     net_pkt_ip_hdr_len(pkt) +
@@ -301,8 +299,8 @@ static enum net_verdict handle_echo_request(struct net_pkt *orig)
 	int ret;
 
 	NET_DBG("Received Echo Request from %s to %s",
-		net_sprint_ipv6_addr(&NET_IPV6_HDR(orig)->src),
-		net_sprint_ipv6_addr(&NET_IPV6_HDR(orig)->dst));
+		log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(orig)->src)),
+		log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(orig)->dst)));
 
 	iface = net_pkt_iface(orig);
 
@@ -336,7 +334,7 @@ static enum net_verdict handle_echo_request(struct net_pkt *orig)
 	NET_IPV6_HDR(pkt)->flow = 0;
 	NET_IPV6_HDR(pkt)->hop_limit = net_if_ipv6_get_hop_limit(iface);
 
-	if (net_is_ipv6_addr_mcast(&NET_IPV6_HDR(pkt)->dst)) {
+	if (net_ipv6_is_addr_mcast(&NET_IPV6_HDR(pkt)->dst)) {
 		net_ipaddr_copy(&NET_IPV6_HDR(pkt)->dst,
 				&NET_IPV6_HDR(orig)->src);
 
@@ -363,13 +361,13 @@ static enum net_verdict handle_echo_request(struct net_pkt *orig)
 #endif
 	}
 
-	net_pkt_ll_src(pkt)->addr = net_pkt_ll_dst(orig)->addr;
-	net_pkt_ll_src(pkt)->len = net_pkt_ll_dst(orig)->len;
+	net_pkt_lladdr_src(pkt)->addr = net_pkt_lladdr_dst(orig)->addr;
+	net_pkt_lladdr_src(pkt)->len = net_pkt_lladdr_dst(orig)->len;
 
 	/* We must not set the destination ll address here but trust
 	 * that it is set properly using a value from neighbor cache.
 	 */
-	net_pkt_ll_dst(pkt)->addr = NULL;
+	net_pkt_lladdr_dst(pkt)->addr = NULL;
 
 	/* ICMPv6 fields */
 	ret = net_icmpv6_get_hdr(pkt, &icmp_hdr);
@@ -384,8 +382,8 @@ static enum net_verdict handle_echo_request(struct net_pkt *orig)
 	net_icmpv6_set_chksum(pkt);
 
 	NET_DBG("Sending Echo Reply from %s to %s",
-		net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->src),
-		net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->dst));
+		log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->src)),
+		log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->dst)));
 
 	if (net_send_data(pkt) < 0) {
 		goto drop;
@@ -482,7 +480,7 @@ int net_icmpv6_send_error(struct net_pkt *orig, u8_t type, u8_t code,
 			     sizeof(struct net_icmp_hdr));
 	}
 
-	if (net_is_ipv6_addr_mcast(&NET_IPV6_HDR(orig)->dst)) {
+	if (net_ipv6_is_addr_mcast(&NET_IPV6_HDR(orig)->dst)) {
 		net_ipaddr_copy(&NET_IPV6_HDR(pkt)->dst,
 				&NET_IPV6_HDR(orig)->src);
 
@@ -498,10 +496,10 @@ int net_icmpv6_send_error(struct net_pkt *orig, u8_t type, u8_t code,
 		net_ipaddr_copy(&NET_IPV6_HDR(pkt)->dst, &addr);
 	}
 
-	net_pkt_ll_src(pkt)->addr = net_pkt_ll_dst(orig)->addr;
-	net_pkt_ll_src(pkt)->len = net_pkt_ll_dst(orig)->len;
-	net_pkt_ll_dst(pkt)->addr = net_pkt_ll_src(orig)->addr;
-	net_pkt_ll_dst(pkt)->len = net_pkt_ll_src(orig)->len;
+	net_pkt_lladdr_src(pkt)->addr = net_pkt_lladdr_dst(orig)->addr;
+	net_pkt_lladdr_src(pkt)->len = net_pkt_lladdr_dst(orig)->len;
+	net_pkt_lladdr_dst(pkt)->addr = net_pkt_lladdr_src(orig)->addr;
+	net_pkt_lladdr_dst(pkt)->len = net_pkt_lladdr_src(orig)->len;
 
 	/* Clear and then set the chksum */
 	err = net_icmpv6_set_chksum(pkt);
@@ -511,8 +509,8 @@ int net_icmpv6_send_error(struct net_pkt *orig, u8_t type, u8_t code,
 
 	NET_DBG("Sending ICMPv6 Error Message type %d code %d param %d"
 		" from %s to %s", type, code, param,
-		net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->src),
-		net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->dst));
+		log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->src)),
+		log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->dst)));
 
 	if (net_send_data(pkt) >= 0) {
 		net_stats_update_icmp_sent(iface);
@@ -578,8 +576,8 @@ int net_icmpv6_send_echo_request(struct net_if *iface,
 
 	NET_DBG("Sending ICMPv6 Echo Request type %d from %s to %s",
 		NET_ICMPV6_ECHO_REQUEST,
-		net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->src),
-		net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->dst));
+		log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->src)),
+		log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(pkt)->dst)));
 
 	if (net_send_data(pkt) >= 0) {
 		net_stats_update_icmp_sent(iface);

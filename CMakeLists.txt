@@ -50,9 +50,9 @@ zephyr_library_named(zephyr)
 zephyr_include_directories(
   kernel/include
   arch/${ARCH}/include
-  arch/${ARCH}/soc/${SOC_PATH}
-  arch/${ARCH}/soc/${SOC_PATH}/include
-  arch/${ARCH}/soc/${SOC_FAMILY}/include
+  ${SOC_DIR}/${ARCH}/${SOC_PATH}
+  ${SOC_DIR}/${ARCH}/${SOC_PATH}/include
+  ${SOC_DIR}/${ARCH}/${SOC_FAMILY}/include
   ${BOARD_DIR}
   include
   include/drivers
@@ -105,6 +105,28 @@ else()
   assert(0 "Unreachable code. Expected optimization level to have been chosen. See misc/Kconfig.")
 endif()
 
+# Dialects of C++, corresponding to the multiple published ISO standards.
+# Which standard it implements can be selected using the -std= command-line option.
+set_ifndef(DIALECT_STD_CPP98 "c++98")
+set_ifndef(DIALECT_STD_CPP11 "c++11")
+set_ifndef(DIALECT_STD_CPP14 "c++14")
+set_ifndef(DIALECT_STD_CPP17 "c++17")
+set_ifndef(DIALECT_STD_CPP2A "c++2a")
+
+if(CONFIG_STD_CPP98)
+  set(STD_CPP_DIALECT ${DIALECT_STD_CPP98})
+elseif(CONFIG_STD_CPP11)
+  set(STD_CPP_DIALECT ${DIALECT_STD_CPP11}) # Default
+elseif(CONFIG_STD_CPP14)
+  set(STD_CPP_DIALECT ${DIALECT_STD_CPP14})
+elseif(CONFIG_STD_CPP17)
+  set(STD_CPP_DIALECT ${DIALECT_STD_CPP17})
+elseif(CONFIG_STD_CPP2A)
+  set(STD_CPP_DIALECT ${DIALECT_STD_CPP2A})
+else()
+  assert(0 "Unreachable code. Expected C++ standard to have been chosen. See misc/Kconfig.")
+endif()
+
 zephyr_compile_options(
   ${OPTIMIZATION_FLAG} # Usually -Os
   -g # TODO: build configuration enough?
@@ -120,24 +142,38 @@ zephyr_compile_options(
 )
 
 zephyr_compile_options(
-  $<$<COMPILE_LANGUAGE:CXX>:-std=c++11>
+  $<$<COMPILE_LANGUAGE:CXX>:-std=${STD_CPP_DIALECT}>
   $<$<COMPILE_LANGUAGE:CXX>:-fcheck-new>
   $<$<COMPILE_LANGUAGE:CXX>:-ffunction-sections>
   $<$<COMPILE_LANGUAGE:CXX>:-fdata-sections>
-  $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
-  $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
 
   $<$<COMPILE_LANGUAGE:ASM>:-xassembler-with-cpp>
   $<$<COMPILE_LANGUAGE:ASM>:-D_ASMLANGUAGE>
 )
 
+if(NOT CONFIG_RTTI)
+zephyr_compile_options(
+  $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+)
+endif()
+
+if(NOT CONFIG_EXCEPTIONS)
+zephyr_compile_options(
+  $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
+)
+endif()
+
 if(NOT CONFIG_NATIVE_APPLICATION)
 zephyr_ld_options(
-  -nostartfiles
-  -nodefaultlibs
   -nostdlib
   -static
   -no-pie
+)
+endif()
+
+if(CONFIG_LIB_CPLUSPLUS)
+zephyr_ld_options(
+  -lstdc++
 )
 endif()
 
@@ -264,6 +300,9 @@ zephyr_system_include_directories(${NOSTDINC})
 # Force an error when things like SYS_INIT(foo, ...) occur with a missing header.
 zephyr_cc_option(-Werror=implicit-int)
 
+# Prohibit void pointer arithmetic. Illegal in C99
+zephyr_cc_option(-Wpointer-arith)
+
 # Prohibit date/time macros, which would make the build non-deterministic
 # cc-option(-Werror=date-time)
 
@@ -284,6 +323,32 @@ zephyr_ld_options(
   ${LINKERFLAGPREFIX},--build-id=none
   )
 
+if(NOT CONFIG_NATIVE_APPLICATION)
+  # Funny thing is if this is set to =error, some architectures will
+  # skip this flag even though the compiler flag check passes
+  # (e.g. ARC and Xtensa). So warning should be the default for now.
+  #
+  # Skip this for native application as Zephyr only provides
+  # additions to the host toolchain linker script. The relocation
+  # sections (.rel*) requires us to override those provided
+  # by host toolchain. As we can't account for all possible
+  # combination of compiler and linker on all machines used
+  # for development, it is better to turn this off.
+  #
+  # CONFIG_LINKER_ORPHAN_SECTION_PLACE is to place the orphan sections
+  # without any warnings or errors, which is the default behavior.
+  # So there is no need to explicity set a linker flag.
+  if(CONFIG_LINKER_ORPHAN_SECTION_WARN)
+    zephyr_ld_options(
+      ${LINKERFLAGPREFIX},--orphan-handling=warn
+      )
+  elseif(CONFIG_LINKER_ORPHAN_SECTION_ERROR)
+    zephyr_ld_options(
+      ${LINKERFLAGPREFIX},--orphan-handling=error
+      )
+  endif()
+endif()
+
 if(CONFIG_HAVE_CUSTOM_LINKER_SCRIPT)
   set(LINKER_SCRIPT ${APPLICATION_SOURCE_DIR}/${CONFIG_CUSTOM_LINKER_SCRIPT})
   if(NOT EXISTS ${LINKER_SCRIPT})
@@ -295,7 +360,7 @@ else()
   set(LINKER_SCRIPT ${BOARD_DIR}/linker.ld)
   if(NOT EXISTS ${LINKER_SCRIPT})
     # If not available, try an SoC specific linker file
-    set(LINKER_SCRIPT ${ZEPHYR_BASE}/arch/${ARCH}/soc/${SOC_PATH}/linker.ld)
+    set(LINKER_SCRIPT ${SOC_DIR}/${ARCH}/${SOC_PATH}/linker.ld)
   endif()
 endif()
 
@@ -335,6 +400,13 @@ add_subdirectory(misc)
 # This is because source file properties are directory scoped, including the GENERATED
 # property which is set implicitly for custom command outputs
 include(misc/generated/CMakeLists.txt)
+
+if(EXISTS ${SOC_DIR}/${ARCH}/CMakeLists.txt)
+  add_subdirectory(${SOC_DIR}/${ARCH} soc/${ARCH})
+else()
+  add_subdirectory(${SOC_DIR}/${ARCH}/${SOC_PATH} soc/${ARCH}/${SOC_PATH})
+endif()
+
 add_subdirectory(boards)
 add_subdirectory(ext)
 add_subdirectory(subsys)
@@ -674,7 +746,7 @@ function(construct_add_custom_command_for_linker_pass linker_output_name output_
     COMMAND ${CMAKE_C_COMPILER}
     -x assembler-with-cpp
     ${NOSTDINC_F}
-    -undef
+    ${NOSYSDEF_CFLAG}
     -MD -MF ${linker_cmd_file_name}.dep -MT ${BASE_NAME}/${linker_cmd_file_name}
     ${ZEPHYR_INCLUDES}
     ${LINKER_SCRIPT_DEFINES}
@@ -755,6 +827,7 @@ if(CONFIG_GEN_ISR_TABLES)
     --output-source isr_tables.c
     --kernel $<TARGET_FILE:zephyr_prebuilt>
     --intlist isrList.bin
+    $<$<BOOL:${CONFIG_BIG_ENDIAN}>:--big-endian>
     $<$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>:--debug>
     ${GEN_ISR_TABLE_EXTRA_ARG}
     DEPENDS zephyr_prebuilt
@@ -1022,7 +1095,7 @@ if(CONFIG_CPU_HAS_MPU AND CONFIG_USERSPACE)
         add_custom_target(
           ${APP_SMEM_DEP} ALL
           DEPENDS app
-          DEPENDS ${PRIV_STACK_DEP}
+          kernel
          )
 
         add_custom_command(
@@ -1050,6 +1123,7 @@ if(CONFIG_CPU_HAS_MPU AND CONFIG_USERSPACE)
       DEPENDS
       linker_app_sizing.cmd
       offsets_h
+      ${APP_SMEM_DEP}
     )
 
     set_property(TARGET
@@ -1088,7 +1162,7 @@ if(CONFIG_ARM)
   add_custom_target(
     linker_priv_stacks_script
     DEPENDS
-    ${ALIGN_SIZING_DEP}
+    ${ALIGN_SIZING_DEP} ${APP_SMEM_DEP}
     linker_priv_stacks.cmd
     offsets_h
     )
@@ -1154,6 +1228,10 @@ else()
   # generation stage.
 endif()
 
+# Export the variable to the application's scope to allow the
+# application to know what the name of the final elf target is.
+set(logical_target_for_zephyr_elf ${logical_target_for_zephyr_elf} PARENT_SCOPE)
+
 # To avoid having the same logical target name for the zephyr lib and
 # the zephyr elf, we set the kernel_elf file name to zephyr.elf.
 set_target_properties(${logical_target_for_zephyr_elf} PROPERTIES OUTPUT_NAME ${KERNEL_NAME})
@@ -1204,7 +1282,7 @@ list_append_ifdef(
 list_append_ifdef(
   CONFIG_BUILD_OUTPUT_EXE
   post_build_commands
-  COMMAND ${CMAKE_COMMAND} -E rename ${KERNEL_ELF_NAME}    ${KERNEL_EXE_NAME}
+  COMMAND ${CMAKE_COMMAND} -E copy ${KERNEL_ELF_NAME}    ${KERNEL_EXE_NAME}
   )
 
 add_custom_command(

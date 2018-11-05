@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <board.h>
+#define LOG_MODULE_NAME net_nats_app_main
+#define NET_LOG_LEVEL LOG_LEVEL_DBG
+
 #include <gpio.h>
 #include <net/net_context.h>
 #include <net/net_core.h>
@@ -103,7 +105,7 @@ static int in_addr_set(sa_family_t family,
 		}
 
 		if (rc < 0) {
-			NET_ERR("Invalid IP address: %s", ip_addr);
+			NET_ERR("Invalid IP address: %s", log_strdup(ip_addr));
 			return -EINVAL;
 		}
 	}
@@ -140,7 +142,7 @@ static void initialize_network(void)
 	NET_INFO("Waiting for DHCP ...");
 	do {
 		k_sleep(K_SECONDS(1));
-	} while (net_is_ipv4_addr_unspecified(&iface->dhcpv4.requested_ip));
+	} while (net_ipv4_is_addr_unspecified(&iface->dhcpv4.requested_ip));
 
 	NET_INFO("Done!");
 
@@ -148,7 +150,7 @@ static void initialize_network(void)
 	NET_INFO("Waiting for IP assginment ...");
 	do {
 		k_sleep(K_SECONDS(1));
-	} while (!net_is_my_ipv4_addr(&iface->dhcpv4.requested_ip));
+	} while (!net_ipv4_is_my_addr(&iface->dhcpv4.requested_ip));
 
 	NET_INFO("Done!");
 #else

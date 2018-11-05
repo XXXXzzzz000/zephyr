@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _DEVICE_H_
-#define _DEVICE_H_
+#ifndef ZEPHYR_INCLUDE_DEVICE_H_
+#define ZEPHYR_INCLUDE_DEVICE_H_
 
 #include <kernel.h>
 
@@ -28,10 +28,6 @@
 extern "C" {
 #endif
 
-static const int _INIT_LEVEL_PRE_KERNEL_1 = 1;
-static const int _INIT_LEVEL_PRE_KERNEL_2 = 1;
-static const int _INIT_LEVEL_POST_KERNEL = 1;
-static const int _INIT_LEVEL_APPLICATION = 1;
 
 /**
  * @def DEVICE_INIT
@@ -238,7 +234,7 @@ struct device {
 	void *driver_data;
 };
 
-void _sys_device_do_config_level(int level);
+void _sys_device_do_config_level(s32_t level);
 
 /**
  * @brief Retrieve the device structure for a driver by name
@@ -290,6 +286,18 @@ struct device *device_get_binding(const char *name);
  */
 #define DEVICE_PM_SUSPEND_STATE         3
 
+/** @def DEVICE_PM_FORCE_SUSPEND_STATE
+ *
+ * @brief device is in force SUSPEND power state
+ *
+ * @details Driver puts the device in suspended state after
+ * completing the ongoing transactions and will not process any
+ * queued work or will not take any new requests for processing.
+ * Most device context is lost by the hardware. Device drivers must
+ * save and restore or reinitialize any context lost by the hardware.
+ */
+#define DEVICE_PM_FORCE_SUSPEND_STATE	4
+
 /** @def DEVICE_PM_OFF_STATE
  *
  * @brief device is in OFF power state
@@ -298,7 +306,7 @@ struct device *device_get_binding(const char *name);
  * The device context is lost when this state is entered, so the OS
  * software will reinitialize the device when powering it back on
  */
-#define DEVICE_PM_OFF_STATE             4
+#define DEVICE_PM_OFF_STATE             5
 
 /* Constants defining support device power commands */
 #define DEVICE_PM_SET_POWER_STATE       1
@@ -434,4 +442,4 @@ int device_busy_check(struct device *chk_dev);
 /**
  * @}
  */
-#endif /* _DEVICE_H_ */
+#endif /* ZEPHYR_INCLUDE_DEVICE_H_ */

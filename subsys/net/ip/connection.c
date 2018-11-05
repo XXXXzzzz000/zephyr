@@ -8,10 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_CONN)
-#define SYS_LOG_DOMAIN "net/conn"
-#define NET_LOG_ENABLED 1
-#endif
+#define LOG_MODULE_NAME net_conn
+#define NET_LOG_LEVEL CONFIG_NET_CONN_LOG_LEVEL
 
 #include <errno.h>
 #include <misc/util.h>
@@ -361,9 +359,9 @@ int net_conn_unregister(struct net_conn_handle *handle)
 	cache_remove(conn);
 
 	NET_DBG("[%zu] connection handler %p removed",
-		(conn - conns) / sizeof(*conn), conn);
+		conn - conns, conn);
 
-	memset(conn, 0, sizeof(*conn));
+	(void)memset(conn, 0, sizeof(*conn));
 
 	return 0;
 }
@@ -382,7 +380,7 @@ int net_conn_change_callback(struct net_conn_handle *handle,
 	}
 
 	NET_DBG("[%zu] connection handler %p changed callback",
-		(conn - conns) / sizeof(*conn), conn);
+		conn - conns, conn);
 
 	conn->cb = cb;
 	conn->user_data = user_data;
@@ -390,7 +388,6 @@ int net_conn_change_callback(struct net_conn_handle *handle,
 	return 0;
 }
 
-#if defined(CONFIG_NET_DEBUG_CONN)
 static inline
 void prepare_register_debug_print(char *dst, int dst_len,
 				  char *src, int src_len,
@@ -398,50 +395,49 @@ void prepare_register_debug_print(char *dst, int dst_len,
 				  const struct sockaddr *local_addr)
 {
 	if (remote_addr && remote_addr->sa_family == AF_INET6) {
-#if defined(CONFIG_NET_IPV6)
-		snprintk(dst, dst_len, "%s",
-			 net_sprint_ipv6_addr(&net_sin6(remote_addr)->
-							sin6_addr));
-#else
-		snprintk(dst, dst_len, "%s", "?");
-#endif
+		if (IS_ENABLED(CONFIG_NET_IPV6)) {
+			snprintk(dst, dst_len, "%s",
+				 log_strdup(net_sprint_ipv6_addr(
+					  &net_sin6(remote_addr)->sin6_addr)));
+		} else {
+			snprintk(dst, dst_len, "%s", "?");
+		}
 
 	} else if (remote_addr && remote_addr->sa_family == AF_INET) {
-#if defined(CONFIG_NET_IPV4)
-		snprintk(dst, dst_len, "%s",
-			 net_sprint_ipv4_addr(&net_sin(remote_addr)->
-							sin_addr));
-#else
-		snprintk(dst, dst_len, "%s", "?");
-#endif
+		if (IS_ENABLED(CONFIG_NET_IPV4)) {
+			snprintk(dst, dst_len, "%s",
+				 log_strdup(net_sprint_ipv4_addr(
+					  &net_sin(remote_addr)->sin_addr)));
+		} else {
+			snprintk(dst, dst_len, "%s", "?");
+		}
 
 	} else {
 		snprintk(dst, dst_len, "%s", "-");
 	}
 
 	if (local_addr && local_addr->sa_family == AF_INET6) {
-#if defined(CONFIG_NET_IPV6)
-		snprintk(src, src_len, "%s",
-			 net_sprint_ipv6_addr(&net_sin6(local_addr)->
-							sin6_addr));
-#else
-		snprintk(src, src_len, "%s", "?");
-#endif
+		if (IS_ENABLED(CONFIG_NET_IPV6)) {
+			snprintk(src, src_len, "%s",
+				 log_strdup(net_sprint_ipv6_addr(
+					  &net_sin6(local_addr)->sin6_addr)));
+		} else {
+			snprintk(src, src_len, "%s", "?");
+		}
 
 	} else if (local_addr && local_addr->sa_family == AF_INET) {
-#if defined(CONFIG_NET_IPV4)
-		snprintk(src, src_len, "%s",
-			 net_sprint_ipv4_addr(&net_sin(local_addr)->
-							sin_addr));
-#else
-		snprintk(src, src_len, "%s", "?");
-#endif
+		if (IS_ENABLED(CONFIG_NET_IPV4)) {
+			snprintk(src, src_len, "%s",
+				 log_strdup(net_sprint_ipv4_addr(
+					  &net_sin(local_addr)->sin_addr)));
+		} else {
+			snprintk(src, src_len, "%s", "?");
+		}
 
 	} else {
 		snprintk(src, src_len, "%s", "-");
 	}
 }
-#endif /* CONFIG_NET_DEBUG_CONN */
 
 /* Check if we already have identical connection handler installed. */
 static int find_conn_handler(enum net_ip_protocol proto,
@@ -584,7 +580,7 @@ int net_conn_register(enum net_ip_protocol proto,
 				memcpy(&conns[i].remote_addr, remote_addr,
 				       sizeof(struct sockaddr_in6));
 
-				if (net_is_ipv6_addr_unspecified(
+				if (net_ipv6_is_addr_unspecified(
 					    &net_sin6(remote_addr)->
 							sin6_addr)) {
 					rank |= NET_RANK_REMOTE_UNSPEC_ADDR;
@@ -621,7 +617,7 @@ int net_conn_register(enum net_ip_protocol proto,
 				memcpy(&conns[i].local_addr, local_addr,
 				       sizeof(struct sockaddr_in6));
 
-				if (net_is_ipv6_addr_unspecified(
+				if (net_ipv6_is_addr_unspecified(
 					    &net_sin6(local_addr)->
 							sin6_addr)) {
 					rank |= NET_RANK_LOCAL_UNSPEC_ADDR;
@@ -679,8 +675,7 @@ int net_conn_register(enum net_ip_protocol proto,
 		/* Cache needs to be cleared if new entries are added. */
 		cache_clear();
 
-#if defined(CONFIG_NET_DEBUG_CONN)
-		do {
+		if (NET_LOG_LEVEL >= LOG_LEVEL_DBG) {
 			char dst[NET_IPV6_ADDR_LEN];
 			char src[NET_IPV6_ADDR_LEN];
 
@@ -689,14 +684,14 @@ int net_conn_register(enum net_ip_protocol proto,
 						     remote_addr,
 						     local_addr);
 
-			NET_DBG("[%d/%d/%u/0x%02x] remote %p/%s/%u "
-				"local %p/%s/%u cb %p ud %p",
-				i, local_addr ? local_addr->sa_family : AF_UNSPEC,
-				proto, rank, remote_addr, dst, remote_port,
-				local_addr, src, local_port,
+			NET_DBG("[%d/%d/%u/0x%02x] remote %p/%s/%u ", i,
+				local_addr ? local_addr->sa_family : AF_UNSPEC,
+				proto, rank, remote_addr, log_strdup(dst),
+				remote_port);
+			NET_DBG("  local %p/%s/%u cb %p ud %p",
+				local_addr, log_strdup(src), local_port,
 				cb, user_data);
-		} while (0);
-#endif /* CONFIG_NET_DEBUG_CONN */
+		}
 
 		if (handle) {
 			*handle = (struct net_conn_handle *)&conns[i];
@@ -726,7 +721,7 @@ static bool check_addr(struct net_pkt *pkt,
 			addr6 = &NET_IPV6_HDR(pkt)->dst;
 		}
 
-		if (!net_is_ipv6_addr_unspecified(
+		if (!net_ipv6_is_addr_unspecified(
 			    &net_sin6(addr)->sin6_addr)) {
 			if (!net_ipv6_addr_cmp(&net_sin6(addr)->sin6_addr,
 					       addr6)) {
@@ -786,14 +781,14 @@ static bool is_invalid_packet(struct net_pkt *pkt,
 	switch (NET_IPV6_HDR(pkt)->vtc & 0xf0) {
 #if defined(CONFIG_NET_IPV6)
 	case 0x60:
-		if (net_is_my_ipv6_addr(&NET_IPV6_HDR(pkt)->src)) {
+		if (net_ipv6_is_my_addr(&NET_IPV6_HDR(pkt)->src)) {
 			my_src_addr = true;
 		}
 		break;
 #endif
 #if defined(CONFIG_NET_IPV4)
 	case 0x40:
-		if (net_is_my_ipv4_addr(&NET_IPV4_HDR(pkt)->src)) {
+		if (net_ipv4_is_my_addr(&NET_IPV4_HDR(pkt)->src)) {
 			my_src_addr = true;
 		}
 		break;
@@ -862,7 +857,7 @@ enum net_verdict net_conn_input(enum net_ip_protocol proto, struct net_pkt *pkt)
 		return NET_DROP;
 	}
 
-	if (IS_ENABLED(CONFIG_NET_DEBUG_CONN)) {
+	if (NET_LOG_LEVEL >= LOG_LEVEL_DBG) {
 		int data_len = -1;
 
 		if (IS_ENABLED(CONFIG_NET_IPV4) &&
@@ -1009,13 +1004,13 @@ enum net_verdict net_conn_input(enum net_ip_protocol proto, struct net_pkt *pkt)
 	 * we do not send ICMP error as that makes no sense.
 	 */
 	if (net_pkt_family(pkt) == AF_INET6 &&
-	    net_is_ipv6_addr_mcast(&NET_IPV6_HDR(pkt)->dst)) {
+	    net_ipv6_is_addr_mcast(&NET_IPV6_HDR(pkt)->dst)) {
 		;
 	} else
 #endif
 #if defined(CONFIG_NET_IPV4)
 	if (net_pkt_family(pkt) == AF_INET &&
-	    net_is_ipv4_addr_mcast(&NET_IPV4_HDR(pkt)->dst)) {
+	    net_ipv4_is_addr_mcast(&NET_IPV4_HDR(pkt)->dst)) {
 		;
 	} else
 #endif
